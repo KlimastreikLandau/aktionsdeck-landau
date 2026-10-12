@@ -1,0 +1,53 @@
+// sw.js
+// Lädt die App-Hülle vor. Dateien der App: zuerst Netz, sonst Zwischenspeicher.
+// Daten der API werden hier nicht gespeichert (kommt in IndexedDB, Schritt 1.6).
+
+const VERSION = '0.1.0';
+const CACHE = 'aktionsdeck-' + VERSION;
+
+const HUELLE = [
+  './',
+  'index.html',
+  'manifest.webmanifest',
+  'css/base.css',
+  'css/layout.css',
+  'css/components.css',
+  'js/config.js',
+  'js/app.js',
+  'icons/icon.svg'
+];
+
+self.addEventListener('install', function (event) {
+  event.waitUntil(
+    caches.open(CACHE).then(function (c) { return c.addAll(HUELLE); })
+      .then(function () { return self.skipWaiting(); })
+  );
+});
+
+self.addEventListener('activate', function (event) {
+  event.waitUntil(
+    caches.keys().then(function (namen) {
+      return Promise.all(namen.filter(function (n) {
+        return n.indexOf('aktionsdeck-') === 0 && n !== CACHE;
+      }).map(function (n) { return caches.delete(n); }));
+    }).then(function () { return self.clients.claim(); })
+  );
+});
+
+self.addEventListener('fetch', function (event) {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  if (new URL(req.url).origin !== self.location.origin) return;
+
+  event.respondWith(
+    fetch(req).then(function (antwort) {
+      const kopie = antwort.clone();
+      caches.open(CACHE).then(function (c) { c.put(req, kopie); });
+      return antwort;
+    }).catch(function () {
+      return caches.match(req).then(function (treffer) {
+        return treffer || caches.match('index.html');
+      });
+    })
+  );
+});
