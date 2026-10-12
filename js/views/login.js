@@ -30,7 +30,8 @@ export function render(container, ctx) {
     knopf.disabled = true;
     knopf.textContent = 'Prüfe …';
     try {
-      const daten = await api('login', { gruppe_id: g.gruppe_id, pin: pin.value });
+      // Das Skript erwartet das Feld "gruppe" (gruppe_id oder kurzname)
+      const daten = await api('login', { gruppe: g.gruppe_id, pin: pin.value });
       if (!daten || !daten.token) throw new Error('Keine Anmeldung erhalten.');
       setSession({
         token: daten.token,
