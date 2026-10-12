@@ -35,7 +35,7 @@ export async function render(container, ctx) {
   } catch (e) {
     status.textContent = 'Fehler: ' + e.message;
     status.className = 'fehler';
-    if (/token|anmeld|abgelaufen|zugang/i.test(e.message)) {
+    if (e.code === 'auth') {
       clearSession();
       ctx.neuLaden();
     }
