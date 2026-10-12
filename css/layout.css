@@ -1,0 +1,17 @@
+/* Grundgerüst. Die Seitenleiste und die untere Leiste kommen in Schritt 1.6. */
+
+#app {
+  min-height: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.seite {
+  padding: var(--abstand);
+}
+
+.mitte {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: var(--abstand);
+}
