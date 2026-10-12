@@ -1,14 +1,22 @@
 // js/app.js
-// Startpunkt: Routing mit #/g/<kurzname>/<reiter>
+// Startpunkt: Routing mit #/g/<kurzname>/<reiter>, Gerüst, Name, Aktualisierung.
 
-import { VERSION } from './config.js';
+import { VERSION, REFRESH_SEKUNDEN } from './config.js';
 import { api } from './api.js';
-import { getSession } from './store.js';
+import { getSession, clearSession, getName, setName } from './store.js';
+import { cacheLeeren } from './cache.js';
+import { baueGeruest, sichtbareTabs, tabLabel } from './ui/nav.js';
+import { frageName } from './ui/modal.js';
+import { toast } from './ui/toast.js';
 import * as gruppenView from './views/gruppen.js';
 import * as loginView from './views/login.js';
-import * as startView from './views/start.js';
+import * as infoView from './views/info.js';
 
 let gruppenListe = null;
+let refreshFn = null;
+let laufNummer = 0;
+let nameFrageOffen = false;
+const geladeneViews = {};
 
 async function ladeGruppen() {
   if (gruppenListe) return gruppenListe;
@@ -27,14 +35,75 @@ function setzeFarbe(farbe) {
   else root.style.removeProperty('--gruppe');
 }
 
-let laufNummer = 0;
+// Lädt views/<reiter>.js. Gibt es die Datei noch nicht, kommt der Platzhalter.
+async function ladeView(tab) {
+  if (geladeneViews[tab]) return geladeneViews[tab];
+  let modul;
+  try {
+    modul = await import('./views/' + tab + '.js');
+  } catch (e) {
+    modul = await import('./views/platzhalter.js');
+  }
+  geladeneViews[tab] = modul;
+  return modul;
+}
+
+async function abmelden() {
+  clearSession();
+  await cacheLeeren();
+  location.hash = '#/';
+  route();
+}
+
+async function nameAendern() {
+  const n = await frageName(getName(), true);
+  if (n) {
+    setName(n);
+    toast('Name gespeichert.');
+    route();
+  }
+}
+
+// true = Fehler wurde behandelt (z. B. Anmeldung abgelaufen)
+function behandleFehler(e) {
+  if (e && e.code === 'auth') {
+    toast(e.message);
+    abmelden();
+    return true;
+  }
+  return false;
+}
+
+async function nameSicherstellen() {
+  if (getName() || nameFrageOffen) return;
+  nameFrageOffen = true;
+  const n = await frageName('', false);
+  setName(n);
+  nameFrageOffen = false;
+}
 
 async function route() {
   const nummer = ++laufNummer;
+  refreshFn = null;
   const container = document.getElementById('app');
   const teile = location.hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent);
 
-  const ctx = { ladeGruppen: ladeGruppen, neuLaden: route, version: VERSION };
+  const ctx = {
+    ladeGruppen: ladeGruppen,
+    neuLaden: route,
+    version: VERSION,
+    abmelden: abmelden,
+    nameAendern: nameAendern,
+    behandleFehler: behandleFehler,
+    setzeRefresh: function (fn) { refreshFn = fn; }
+  };
+
+  // Info ohne Login
+  if (teile[0] === 'info') {
+    setzeFarbe('');
+    infoView.render(container, ctx);
+    return;
+  }
 
   if (teile[0] === 'g' && teile[1]) {
     const gruppen = await ladeGruppen();
@@ -50,10 +119,26 @@ async function route() {
     if (!s || s.gruppe_id !== g.gruppe_id) {
       ctx.gruppe = g;
       loginView.render(container, ctx);
-    } else {
-      ctx.session = s;
-      ctx.tab = teile[2] || 'start';
-      startView.render(container, ctx);
+      return;
+    }
+
+    ctx.session = s;
+    const erlaubt = sichtbareTabs().map(function (t) { return t.id; }).concat('mehr');
+    ctx.tab = erlaubt.indexOf(teile[2]) >= 0 ? teile[2] : 'start';
+    ctx.tabLabel = tabLabel(ctx.tab);
+
+    const geruest = baueGeruest(container, ctx);
+    ctx.detail = geruest.detail;
+
+    await nameSicherstellen();
+    if (nummer !== laufNummer) return;
+
+    const modul = await ladeView(ctx.tab);
+    if (nummer !== laufNummer) return;
+    try {
+      await modul.render(geruest.inhalt, ctx);
+    } catch (e) {
+      if (!behandleFehler(e)) geruest.inhalt.textContent = 'Fehler: ' + e.message;
     }
     return;
   }
@@ -69,6 +154,11 @@ function serviceWorkerAnmelden() {
     });
   }
 }
+
+// Offene Seiten laden regelmäßig neu (nur wenn sichtbar und online)
+setInterval(function () {
+  if (refreshFn && document.visibilityState === 'visible' && navigator.onLine) refreshFn();
+}, REFRESH_SEKUNDEN * 1000);
 
 window.addEventListener('hashchange', route);
 route();
