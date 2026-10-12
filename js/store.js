@@ -1,7 +1,8 @@
 // js/store.js
-// Merkt sich die Anmeldung im Gerät. Das Token ist signiert, enthält aber kein Geheimnis.
+// Merkt sich im Gerät: die Anmeldung (Token) und den Anzeigenamen.
 
 const KEY = 'aktionsdeck_session';
+const NAME_KEY = 'aktionsdeck_name';
 
 export function getSession() {
   try {
@@ -18,4 +19,13 @@ export function setSession(s) {
 
 export function clearSession() {
   try { localStorage.removeItem(KEY); } catch (e) { /* ignorieren */ }
+}
+
+// Anzeigename bleibt auch nach dem Abmelden auf dem Gerät
+export function getName() {
+  try { return (localStorage.getItem(NAME_KEY) || '').trim(); } catch (e) { return ''; }
+}
+
+export function setName(n) {
+  try { localStorage.setItem(NAME_KEY, String(n).trim().slice(0, 60)); } catch (e) { /* ignorieren */ }
 }
