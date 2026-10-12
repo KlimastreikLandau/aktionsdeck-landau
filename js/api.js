@@ -3,10 +3,13 @@
 // Antwort: { ok, data, error, code }
 
 import { API_URL } from './config.js';
+import { getName } from './store.js';
 
 export async function api(aktion, params, token) {
   const body = Object.assign({}, params || {}, { aktion: aktion });
   if (token) body.token = token;
+  const name = getName();
+  if (name && !body.anzeigename) body.anzeigename = name;
 
   let antwort;
   try {
