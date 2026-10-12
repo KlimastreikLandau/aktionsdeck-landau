@@ -1,8 +1,8 @@
 // sw.js
 // Lädt die App-Hülle vor. Dateien der App: zuerst Netz, sonst Zwischenspeicher.
-// Daten der API werden hier nicht gespeichert (kommt in IndexedDB, Schritt 1.6).
+// Daten der API werden hier nicht gespeichert (kommt in IndexedDB, Teil B).
 
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 const CACHE = 'aktionsdeck-' + VERSION;
 
 const HUELLE = [
@@ -14,6 +14,13 @@ const HUELLE = [
   'css/components.css',
   'js/config.js',
   'js/app.js',
+  'js/api.js',
+  'js/store.js',
+  'js/ui/dom.js',
+  'js/ui/toast.js',
+  'js/views/gruppen.js',
+  'js/views/login.js',
+  'js/views/start.js',
   'icons/icon.svg'
 ];
 
