@@ -1,8 +1,8 @@
 // sw.js
 // Lädt die App-Hülle vor. Dateien der App: zuerst Netz, sonst Zwischenspeicher.
-// Daten der API werden hier nicht gespeichert (kommt in IndexedDB, Teil B).
+// Daten der API liegen nicht hier, sondern in IndexedDB (js/cache.js).
 
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
 const CACHE = 'aktionsdeck-' + VERSION;
 
 const HUELLE = [
@@ -16,11 +16,17 @@ const HUELLE = [
   'js/app.js',
   'js/api.js',
   'js/store.js',
+  'js/cache.js',
   'js/ui/dom.js',
   'js/ui/toast.js',
+  'js/ui/modal.js',
+  'js/ui/nav.js',
   'js/views/gruppen.js',
   'js/views/login.js',
   'js/views/start.js',
+  'js/views/mehr.js',
+  'js/views/info.js',
+  'js/views/platzhalter.js',
   'icons/icon.svg'
 ];
 
@@ -48,8 +54,10 @@ self.addEventListener('fetch', function (event) {
 
   event.respondWith(
     fetch(req).then(function (antwort) {
-      const kopie = antwort.clone();
-      caches.open(CACHE).then(function (c) { c.put(req, kopie); });
+      if (antwort.ok) {
+        const kopie = antwort.clone();
+        caches.open(CACHE).then(function (c) { c.put(req, kopie); });
+      }
       return antwort;
     }).catch(function () {
       return caches.match(req).then(function (treffer) {
