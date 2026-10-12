@@ -1,0 +1,34 @@
+/* Knöpfe, Karten, Eingabefelder. Tippflächen mindestens 44 px. */
+
+.knopf {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--gruppe);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.knopf:disabled { opacity: 0.5; cursor: default; }
+
+.karte {
+  background: var(--flaeche);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  padding: var(--abstand);
+  margin-bottom: 12px;
+}
+
+.feld {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  font: inherit;
+  background: #fff;
+}
