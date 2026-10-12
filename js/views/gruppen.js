@@ -3,6 +3,10 @@
 
 import { el, leeren } from '../ui/dom.js';
 
+function infoLink() {
+  return el('p', null, el('a', { href: '#/info', text: 'Info (Impressum, Datenschutz, Hilfe)' }));
+}
+
 export async function render(container, ctx) {
   leeren(container);
   const box = el('div', { class: 'mitte' },
@@ -15,6 +19,7 @@ export async function render(container, ctx) {
   if (!gruppen) {
     box.append(el('p', { class: 'fehler', text: 'Die Gruppen konnten nicht geladen werden.' }));
     box.append(el('button', { class: 'knopf', text: 'Nochmal versuchen', onclick: ctx.neuLaden }));
+    box.append(infoLink());
     return;
   }
 
@@ -26,4 +31,5 @@ export async function render(container, ctx) {
     if (g.farbe) karte.style.borderLeftColor = g.farbe;
     box.append(karte);
   });
+  box.append(infoLink());
 }
