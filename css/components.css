@@ -216,3 +216,10 @@ textarea.feld { min-height: 96px; resize: vertical; }
 .formfeld-bool input { width: 22px; height: 22px; }
 
 .form-knoepfe { display: flex; gap: 12px; flex-wrap: wrap; }
+
+
+/* ---- Drei Filter nebeneinander (Material) ---- */
+
+@media (min-width: 600px) {
+  .filterzeile { grid-template-columns: 2fr 1fr 1fr; }
+}
