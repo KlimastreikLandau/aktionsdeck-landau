@@ -127,3 +127,29 @@
 
   .detail:empty { display: none; }
 }
+
+/* ---- Detailbereich: Vollbild am Handy, rechts am PC ---- */
+
+.detail.offen {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  background: var(--flaeche);
+  overflow-y: auto;
+  padding: calc(var(--abstand) + env(safe-area-inset-top, 0px))
+           var(--abstand)
+           calc(var(--abstand) + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 960px) {
+  .detail.offen {
+    position: sticky;
+    inset: auto;
+    top: 0;
+    z-index: auto;
+    align-self: flex-start;
+    max-height: 100vh;
+    padding: var(--abstand);
+  }
+}
