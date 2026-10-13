@@ -1,12 +1,13 @@
 :root {
-  --gruen: #2e7d32;
-  --gruen-hell: #e8f5e9;
+  --gruen: #368469;
+  --gruen-hell: #e6f1ed;
   --gruppe: var(--gruen);
-  --text: #1b1b1b;
-  --text-leise: #5c665c;
-  --hintergrund: #f4f8f4;
+  --gruppe-text: #ffffff;
+  --text: #1a1e20;
+  --text-leise: #596360;
+  --hintergrund: #f3f7f5;
   --flaeche: #ffffff;
-  --rand: #d5ded5;
+  --rand: #d3deda;
   --radius: 10px;
   --abstand: 16px;
 }
