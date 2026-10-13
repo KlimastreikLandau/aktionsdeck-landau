@@ -6,7 +6,7 @@
   border: 0;
   border-radius: var(--radius);
   background: var(--gruppe);
-  color: #fff;
+  color: var(--gruppe-text);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -16,8 +16,8 @@
 
 .knopf-hell {
   background: #fff;
-  color: var(--gruppe);
-  border: 1px solid var(--rand);
+  color: var(--text);
+  border: 1px solid var(--gruppe);
 }
 
 .knopf-gefahr {
@@ -100,7 +100,7 @@ textarea.feld { min-height: 96px; resize: vertical; }
   max-width: 90%;
   padding: 12px 18px;
   border-radius: var(--radius);
-  background: #263238;
+  background: #1a1e20;
   color: #fff;
   z-index: 3000;
 }
@@ -140,7 +140,8 @@ textarea.feld { min-height: 96px; resize: vertical; }
 }
 
 .tabelle th {
-  color: var(--text-leise);
+  background: var(--gruppe);
+  color: var(--gruppe-text);
   font-size: 14px;
   font-weight: 600;
 }
@@ -153,7 +154,7 @@ textarea.feld { min-height: 96px; resize: vertical; }
 .listenkarte p { margin: 4px 0 0; }
 
 @media (min-width: 600px) {
-  .filterzeile { grid-template-columns: 2fr 1fr; }
+  .filterzeile { grid-template-columns: 2fr 1fr 1fr; }
 }
 
 @media (min-width: 960px) {
@@ -216,10 +217,3 @@ textarea.feld { min-height: 96px; resize: vertical; }
 .formfeld-bool input { width: 22px; height: 22px; }
 
 .form-knoepfe { display: flex; gap: 12px; flex-wrap: wrap; }
-
-
-/* ---- Drei Filter nebeneinander (Material) ---- */
-
-@media (min-width: 600px) {
-  .filterzeile { grid-template-columns: 2fr 1fr 1fr; }
-}
