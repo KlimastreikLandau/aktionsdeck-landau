@@ -20,6 +20,12 @@
   border: 1px solid var(--rand);
 }
 
+.knopf-gefahr {
+  background: #fff;
+  color: #b3261e;
+  border: 1px solid var(--rand);
+}
+
 .karte {
   background: var(--flaeche);
   border: 1px solid var(--rand);
@@ -38,6 +44,8 @@
   font: inherit;
   background: #fff;
 }
+
+textarea.feld { min-height: 96px; resize: vertical; }
 
 .leise { color: var(--text-leise); }
 
@@ -99,6 +107,16 @@
 
 /* ---- Listen ---- */
 
+.kopfzeile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: var(--abstand);
+}
+
+.kopfzeile h1 { margin: 0; }
+
 .filterzeile {
   display: grid;
   gap: 8px;
@@ -147,6 +165,13 @@
 
 .detail-kopf { margin-bottom: 12px; }
 
+.detail-knoepfe {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
 .detail-foto-box { margin-bottom: 12px; }
 
 .detail-foto {
@@ -172,3 +197,22 @@
 
 .verlauf { list-style: none; padding: 0; margin: 0; }
 .verlauf li { padding: 8px 0; border-bottom: 1px solid var(--rand); }
+
+/* ---- Formulare ---- */
+
+.formular { display: grid; gap: 14px; }
+
+.formfeld { display: grid; gap: 4px; }
+
+.formlabel { font-weight: 600; font-size: 14px; }
+
+.formfeld-bool {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+
+.formfeld-bool input { width: 22px; height: 22px; }
+
+.form-knoepfe { display: flex; gap: 12px; flex-wrap: wrap; }
