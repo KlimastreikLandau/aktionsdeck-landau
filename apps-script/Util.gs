@@ -142,4 +142,4 @@ function protokoll(ctx, aktion, tab, ids, anzeige) {
     return [zeit, ctx.gruppe_id, aktion, tab, id, schuetzen(anzeige)];
   });
   anhaengen(blatt('Log'), arrays);
-}ssadasdassadasdasdasdasdasd
+}
