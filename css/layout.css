@@ -55,8 +55,9 @@
 }
 
 .nav-unten.aktiv {
-  color: var(--gruppe);
+  color: var(--text);
   font-weight: 700;
+  box-shadow: inset 0 3px 0 var(--gruppe);
 }
 
 .nav-icon { font-size: 20px; line-height: 1; }
@@ -106,8 +107,9 @@
 
   .nav-link.aktiv {
     background: var(--gruen-hell);
-    color: var(--gruppe);
+    color: var(--text);
     font-weight: 600;
+    box-shadow: inset 4px 0 0 var(--gruppe);
   }
 
   .seiten-fuss {
