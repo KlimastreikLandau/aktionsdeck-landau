@@ -1,7 +1,6 @@
 // js/views/material.js
 // Reiter Material: Liste mit Suche, Kategorie-Filter, Status-Filter, Verfügbar-Spalte,
-// Details, Anlegen, Ändern und Löschen.
-// Verfügbar = anzahl - Summe mitgenommen + Summe zurueck.
+// Details, Anlegen, Ändern, Löschen, Mitnehmen und Zurückgeben.
 
 import { el, leeren } from '../ui/dom.js';
 import { api } from '../api.js';
@@ -11,38 +10,9 @@ import { zeigeDetail, schliesseDetail } from '../ui/detail.js';
 import { baueFormular } from '../ui/form.js';
 import { toast } from '../ui/toast.js';
 import { baueDetail, fotoId } from './material-detail.js';
+import { baueAusleiheForm, personenAus } from './material-ausleihe.js';
+import { bewegung, mitVerfuegbar, zeitText } from './material-rechnen.js';
 import { istFalsch, SCHEMA } from '../schema.js';
-
-function zahl(v) {
-  const n = Number(v);
-  return isNaN(n) ? 0 : n;
-}
-
-function runden(n) {
-  return Math.round(n * 100) / 100;
-}
-
-// Pro Material: Summe zurueck minus Summe mitgenommen
-function bewegung(ausleihen) {
-  const m = {};
-  ausleihen.forEach(function (a) {
-    const id = String(a.material_id);
-    if (a.art === 'mitgenommen') m[id] = (m[id] || 0) - zahl(a.anzahl);
-    else if (a.art === 'zurueck') m[id] = (m[id] || 0) + zahl(a.anzahl);
-  });
-  return m;
-}
-
-function mitVerfuegbar(m, bew) {
-  const v = m.anzahl === '' || m.anzahl === undefined
-    ? ''
-    : runden(zahl(m.anzahl) + (bew[String(m.id)] || 0));
-  return Object.assign({}, m, { _verfuegbar: v });
-}
-
-function zeitText(iso) {
-  return new Date(iso).toLocaleString('de-DE');
-}
 
 export async function render(container, ctx) {
   const s = ctx.session;
@@ -114,7 +84,17 @@ export async function render(container, ctx) {
     const inhalt = el('div', null,
       el('div', { class: 'detail-knoepfe' },
         el('button', {
-          class: 'knopf', type: 'button', text: 'Bearbeiten',
+          class: 'knopf', type: 'button', text: 'Mitnehmen',
+          onclick: function () { ausleiheZeigen(m, 'mitgenommen'); }
+        }),
+        el('button', {
+          class: 'knopf', type: 'button', text: 'Zurückgeben',
+          onclick: function () { ausleiheZeigen(m, 'zurueck'); }
+        })
+      ),
+      el('div', { class: 'detail-knoepfe' },
+        el('button', {
+          class: 'knopf knopf-hell', type: 'button', text: 'Bearbeiten',
           onclick: function () { formZeigen(m); }
         }),
         el('button', {
@@ -128,6 +108,35 @@ export async function render(container, ctx) {
       baueDetail(z, verlauf)
     );
     zeigeDetail(ctx.detail, String(m.name), inhalt, function () { offenId = null; }, neu);
+  }
+
+  // ---- Ausleihe: art = 'mitgenommen' oder 'zurueck' ----
+
+  function ausleiheZeigen(m, art) {
+    formOffen = true;
+    const z = mitVerfuegbar(m, bewegung(daten.ausleihe));
+    const form = baueAusleiheForm({
+      ctx: ctx,
+      token: s.token,
+      m: m,
+      art: art,
+      verfuegbar: z._verfuegbar,
+      personen: personenAus(daten.ausleihe),
+      onFertig: async function () {
+        formOffen = false;
+        offenId = m.id;
+        await laden(false);
+        detailZeigen(m.id, true);
+      },
+      onAbbrechen: function () { formSchliessen(m); }
+    });
+    zeigeDetail(
+      ctx.detail,
+      (art === 'mitgenommen' ? 'Mitnehmen: ' : 'Zurückgeben: ') + String(m.name),
+      form,
+      function () { formOffen = false; offenId = null; },
+      true
+    );
   }
 
   // ---- Formular: m = null heißt neu anlegen ----
