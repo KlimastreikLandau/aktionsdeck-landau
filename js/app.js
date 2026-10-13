@@ -29,10 +29,28 @@ async function ladeGruppen() {
   }
 }
 
+// Wählt Weiß oder Dunkelgrau, je nachdem, was auf der Farbe besser lesbar ist.
+function schriftfarbeFuer(hex) {
+  const kanal = function (i) {
+    const c = parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  const l = 0.2126 * kanal(0) + 0.7152 * kanal(1) + 0.0722 * kanal(2);
+  const kontrastWeiss = 1.05 / (l + 0.05);
+  const kontrastDunkel = (l + 0.05) / (0.0125 + 0.05);
+  return kontrastWeiss >= kontrastDunkel ? '#ffffff' : '#1a1e20';
+}
+
 function setzeFarbe(farbe) {
   const root = document.documentElement;
-  if (farbe) root.style.setProperty('--gruppe', farbe);
-  else root.style.removeProperty('--gruppe');
+  const f = String(farbe || '').trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(f)) {
+    root.style.setProperty('--gruppe', f);
+    root.style.setProperty('--gruppe-text', schriftfarbeFuer(f));
+  } else {
+    root.style.removeProperty('--gruppe');
+    root.style.removeProperty('--gruppe-text');
+  }
 }
 
 // Lädt views/<reiter>.js. Gibt es die Datei noch nicht, kommt der Platzhalter.
