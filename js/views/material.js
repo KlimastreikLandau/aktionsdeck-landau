@@ -1,11 +1,13 @@
 // js/views/material.js
-// Reiter Material: Liste mit Suche, Kategorie-Filter und Verfügbar-Spalte.
+// Reiter Material: Liste mit Suche, Kategorie-Filter, Verfügbar-Spalte und Details.
 // Verfügbar = anzahl - Summe mitgenommen + Summe zurueck.
 
 import { el, leeren } from '../ui/dom.js';
 import { api } from '../api.js';
 import { ladeMitCache } from '../cache.js';
 import { zeigeListe } from '../ui/table.js';
+import { zeigeDetail, schliesseDetail } from '../ui/detail.js';
+import { baueDetail } from './material-detail.js';
 import { istFalsch } from '../schema.js';
 
 function zahl(v) {
@@ -28,6 +30,13 @@ function bewegung(ausleihen) {
   return m;
 }
 
+function mitVerfuegbar(m, bew) {
+  const v = m.anzahl === '' || m.anzahl === undefined
+    ? ''
+    : runden(zahl(m.anzahl) + (bew[String(m.id)] || 0));
+  return Object.assign({}, m, { _verfuegbar: v });
+}
+
 function zeitText(iso) {
   return new Date(iso).toLocaleString('de-DE');
 }
@@ -37,6 +46,7 @@ export async function render(container, ctx) {
   leeren(container);
 
   let daten = { material: [], ausleihe: [] };
+  let offenId = null;
   const status = el('p', { class: 'leise', text: 'Lade Daten …' });
   const suche = el('input', {
     class: 'feld', type: 'search', placeholder: 'Suchen …', 'aria-label': 'Suchen'
@@ -65,6 +75,21 @@ export async function render(container, ctx) {
     kat.value = liste.indexOf(gewaehlt) >= 0 ? gewaehlt : '';
   }
 
+  function detailZeigen(id, neu) {
+    const m = daten.material.find(function (x) { return String(x.id) === String(id); });
+    if (!m) {
+      offenId = null;
+      schliesseDetail(ctx.detail);
+      return;
+    }
+    const z = mitVerfuegbar(m, bewegung(daten.ausleihe));
+    const verlauf = daten.ausleihe.filter(function (a) {
+      return String(a.material_id) === String(m.id);
+    });
+    zeigeDetail(ctx.detail, String(m.name), baueDetail(z, verlauf),
+      function () { offenId = null; }, neu);
+  }
+
   function zeichne() {
     const bew = bewegung(daten.ausleihe);
     const q = suche.value.trim().toLowerCase();
@@ -76,12 +101,7 @@ export async function render(container, ctx) {
       if (!q) return true;
       return [m.name, m.kategorie, m.unterkategorie, m.ort, m.notiz]
         .join(' ').toLowerCase().indexOf(q) >= 0;
-    }).map(function (m) {
-      const v = m.anzahl === '' || m.anzahl === undefined
-        ? ''
-        : runden(zahl(m.anzahl) + (bew[String(m.id)] || 0));
-      return Object.assign({}, m, { _verfuegbar: v });
-    });
+    }).map(function (m) { return mitVerfuegbar(m, bew); });
 
     zeilen.sort(function (a, b) {
       return String(a.name).localeCompare(String(b.name), 'de');
@@ -107,7 +127,10 @@ export async function render(container, ctx) {
           ]
         };
       },
-      null,
+      function (z) {
+        offenId = z.id;
+        detailZeigen(z.id, true);
+      },
       daten.material.length ? 'Nichts gefunden.' : 'Noch kein Material eingetragen.'
     );
   }
@@ -116,6 +139,7 @@ export async function render(container, ctx) {
     daten = neu;
     kategorienAufbauen();
     zeichne();
+    if (offenId) detailZeigen(offenId, false);
     status.className = 'leise';
     status.textContent = meta.aktuell
       ? daten.material.length + ' Einträge · Stand ' + zeitText(meta.stand)
