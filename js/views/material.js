@@ -1,6 +1,6 @@
 // js/views/material.js
-// Reiter Material: Liste mit Suche, Kategorie-Filter, Verfügbar-Spalte, Details,
-// Anlegen, Ändern und Löschen.
+// Reiter Material: Liste mit Suche, Kategorie-Filter, Status-Filter, Verfügbar-Spalte,
+// Details, Anlegen, Ändern und Löschen.
 // Verfügbar = anzahl - Summe mitgenommen + Summe zurueck.
 
 import { el, leeren } from '../ui/dom.js';
@@ -56,6 +56,11 @@ export async function render(container, ctx) {
     class: 'feld', type: 'search', placeholder: 'Suchen …', 'aria-label': 'Suchen'
   });
   const kat = el('select', { class: 'feld', 'aria-label': 'Kategorie' });
+  const stat = el('select', { class: 'feld', 'aria-label': 'Status' },
+    el('option', { value: 'aktiv', text: 'Aktive' }),
+    el('option', { value: 'inaktiv', text: 'Nicht aktive' }),
+    el('option', { value: 'alle', text: 'Alle' })
+  );
   const box = el('div');
 
   container.append(el('div', { class: 'seite' },
@@ -68,7 +73,7 @@ export async function render(container, ctx) {
         onclick: function () { offenId = null; formZeigen(null); }
       })
     ),
-    el('div', { class: 'filterzeile' }, suche, kat),
+    el('div', { class: 'filterzeile' }, suche, kat, stat),
     status,
     box
   ));
@@ -117,6 +122,9 @@ export async function render(container, ctx) {
           onclick: function () { loeschen(m); }
         })
       ),
+      istFalsch(m.aktiv)
+        ? el('p', { class: 'fehler', text: 'Dieses Material ist nicht aktiv. Zum Zurückholen: Bearbeiten und „Aktiv“ anhaken.' })
+        : null,
       baueDetail(z, verlauf)
     );
     zeigeDetail(ctx.detail, String(m.name), inhalt, function () { offenId = null; }, neu);
@@ -193,7 +201,8 @@ export async function render(container, ctx) {
 
   async function loeschen(m) {
     const frage = '„' + String(m.name) + '“ wirklich löschen? ' +
-      'Das Material verschwindet aus der Liste. Die Ausleihe-Einträge bleiben erhalten.';
+      'Das Material verschwindet aus der Liste. Die Ausleihe-Einträge bleiben erhalten. ' +
+      'Tipp: Zum Ausblenden reicht es, „Aktiv“ abzuhaken.';
     if (!window.confirm(frage)) return;
     try {
       await api('delete', { tabelle: 'Material', id: m.id, bekannt: m.geaendert_am }, s.token);
@@ -218,9 +227,12 @@ export async function render(container, ctx) {
     const bew = bewegung(daten.ausleihe);
     const q = suche.value.trim().toLowerCase();
     const k = kat.value;
+    const st = stat.value;
 
     const zeilen = daten.material.filter(function (m) {
-      if (istFalsch(m.aktiv)) return false;
+      const inaktiv = istFalsch(m.aktiv);
+      if (st === 'aktiv' && inaktiv) return false;
+      if (st === 'inaktiv' && !inaktiv) return false;
       if (k && String(m.kategorie || '').trim() !== k) return false;
       if (!q) return true;
       return [m.name, m.kategorie, m.unterkategorie, m.ort, m.notiz]
@@ -233,7 +245,13 @@ export async function render(container, ctx) {
 
     zeigeListe(box, zeilen,
       [
-        { name: 'name', label: 'Name' },
+        {
+          name: 'name',
+          label: 'Name',
+          wert: function (z) {
+            return String(z.name) + (istFalsch(z.aktiv) ? ' (nicht aktiv)' : '');
+          }
+        },
         { name: 'kategorie', label: 'Kategorie' },
         { name: 'ort', label: 'Ort' },
         { name: 'anzahl', label: 'Anzahl', zahl: true },
@@ -242,7 +260,7 @@ export async function render(container, ctx) {
       function (z) {
         const einheit = z.einheit ? ' ' + z.einheit : '';
         return {
-          titel: String(z.name),
+          titel: String(z.name) + (istFalsch(z.aktiv) ? ' (nicht aktiv)' : ''),
           zeilen: [
             [z.kategorie, z.ort].filter(Boolean).join(' · '),
             z._verfuegbar === ''
@@ -299,6 +317,7 @@ export async function render(container, ctx) {
 
   suche.addEventListener('input', zeichne);
   kat.addEventListener('change', zeichne);
+  stat.addEventListener('change', zeichne);
   ctx.setzeRefresh(function () { return laden(false); });
   await laden(true);
 }
