@@ -1,0 +1,121 @@
+// js/ui/form.js
+// Baut ein Formular aus einer Feldliste (siehe js/schema.js).
+// Texte kommen nur über textContent (dom.js), nie über innerHTML.
+
+import { el } from './dom.js';
+import { istFalsch } from '../schema.js';
+
+function zahlOk(t) {
+  const s = String(t).trim().replace(',', '.');
+  return s === '' || !isNaN(Number(s));
+}
+
+function text(w) {
+  return w === undefined || w === null ? '' : String(w);
+}
+
+// Baut ein einzelnes Eingabefeld. Gibt { feld, extra, lesen } zurück.
+function eingabe(f, wert, vorschlaege) {
+  if (f.typ === 'bool') {
+    const cb = el('input', { type: 'checkbox', name: f.name });
+    cb.checked = wert === undefined || wert === null ? true : !istFalsch(wert);
+    return { feld: cb, lesen: function () { return cb.checked; } };
+  }
+
+  let feld;
+  let extra = null;
+  if (f.typ === 'langtext') {
+    feld = el('textarea', { class: 'feld', name: f.name, rows: '4', maxlength: '5000' });
+  } else if (f.typ === 'auswahl') {
+    feld = el('select', { class: 'feld', name: f.name });
+    feld.append(el('option', { value: '', text: '–' }));
+    (f.optionen || []).forEach(function (o) {
+      feld.append(el('option', { value: o, text: o }));
+    });
+  } else {
+    feld = el('input', { class: 'feld', type: 'text', name: f.name, maxlength: '200' });
+    if (f.typ === 'zahl') feld.setAttribute('inputmode', 'decimal');
+    if (f.typ === 'foto') feld.setAttribute('placeholder', 'Link oder ID aus Google Drive');
+    if (vorschlaege && vorschlaege.length) {
+      const id = 'vorschlag-' + f.name;
+      feld.setAttribute('list', id);
+      extra = el('datalist', { id: id });
+      vorschlaege.forEach(function (v) { extra.append(el('option', { value: v })); });
+    }
+  }
+  feld.value = text(wert);
+  return { feld: feld, extra: extra, lesen: function () { return feld.value; } };
+}
+
+// felder: Liste aus schema.js, start: vorhandene Werte (oder {})
+// opt: { speichernText, vorschlaege: {feldname:[...]}, onSpeichern(daten) -> Promise, onAbbrechen() }
+// Wirft onSpeichern einen Fehler, steht dessen Text im Formular.
+export function baueFormular(felder, start, opt) {
+  const werte = start || {};
+  const o = opt || {};
+  const fehler = el('p', { class: 'fehler', role: 'alert' });
+
+  const eingaben = felder.map(function (f) {
+    return Object.assign({ f: f }, eingabe(f, werte[f.name], (o.vorschlaege || {})[f.name]));
+  });
+
+  const label = o.speichernText || 'Speichern';
+  const knopf = el('button', { class: 'knopf', type: 'submit', text: label });
+  const knoepfe = el('div', { class: 'form-knoepfe' }, knopf);
+  if (o.onAbbrechen) {
+    knoepfe.append(el('button', {
+      class: 'knopf knopf-hell',
+      type: 'button',
+      text: 'Abbrechen',
+      onclick: o.onAbbrechen
+    }));
+  }
+
+  const formular = el('form', { class: 'formular', novalidate: '' });
+  eingaben.forEach(function (e) {
+    const f = e.f;
+    if (f.typ === 'bool') {
+      formular.append(el('label', { class: 'formfeld-bool' }, e.feld, el('span', { text: f.label })));
+    } else {
+      formular.append(el('label', { class: 'formfeld' },
+        el('span', { class: 'formlabel', text: f.label + (f.pflicht ? ' *' : '') }),
+        e.feld,
+        e.extra
+      ));
+    }
+  });
+  formular.append(fehler, knoepfe);
+
+  formular.addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    fehler.textContent = '';
+    const daten = {};
+    for (let i = 0; i < eingaben.length; i++) {
+      const f = eingaben[i].f;
+      let w = eingaben[i].lesen();
+      if (typeof w === 'string') w = w.trim();
+      if (f.pflicht && w === '') {
+        fehler.textContent = '„' + f.label + '“ darf nicht leer sein.';
+        eingaben[i].feld.focus();
+        return;
+      }
+      if (f.typ === 'zahl' && !zahlOk(w)) {
+        fehler.textContent = '„' + f.label + '“ muss eine Zahl sein.';
+        eingaben[i].feld.focus();
+        return;
+      }
+      daten[f.name] = w;
+    }
+    knopf.disabled = true;
+    knopf.textContent = 'Speichere …';
+    try {
+      await o.onSpeichern(daten);
+    } catch (e) {
+      fehler.textContent = e.message;
+      knopf.disabled = false;
+      knopf.textContent = label;
+    }
+  });
+
+  return formular;
+}
