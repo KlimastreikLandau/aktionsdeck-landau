@@ -1,4 +1,4 @@
-/* Knöpfe, Karten, Eingabefelder, Fenster. Tippflächen mindestens 44 px. */
+/* Knöpfe, Karten, Eingabefelder, Fenster, Listen. Tippflächen mindestens 44 px. */
 
 .knopf {
   min-height: 44px;
@@ -95,4 +95,50 @@
   background: #263238;
   color: #fff;
   z-index: 3000;
+}
+
+/* ---- Listen ---- */
+
+.filterzeile {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tabelle-wrap { display: none; }
+
+.tabelle {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--flaeche);
+  border: 1px solid var(--rand);
+}
+
+.tabelle th,
+.tabelle td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--rand);
+}
+
+.tabelle th {
+  color: var(--text-leise);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tabelle .zahl { text-align: right; }
+.tabelle tbody tr:hover { background: var(--gruen-hell); }
+.klickbar { cursor: pointer; }
+
+.listenkarte { margin-bottom: 10px; }
+.listenkarte p { margin: 4px 0 0; }
+
+@media (min-width: 600px) {
+  .filterzeile { grid-template-columns: 2fr 1fr; }
+}
+
+@media (min-width: 960px) {
+  .tabelle-wrap { display: block; }
+  .karten-liste { display: none; }
 }
