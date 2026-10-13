@@ -32,6 +32,8 @@ function eingabe(f, wert, vorschlaege) {
     (f.optionen || []).forEach(function (o) {
       feld.append(el('option', { value: o, text: o }));
     });
+  } else if (f.typ === 'datum') {
+    feld = el('input', { class: 'feld', type: 'date', name: f.name });
   } else {
     feld = el('input', { class: 'feld', type: 'text', name: f.name, maxlength: '200' });
     if (f.typ === 'zahl') feld.setAttribute('inputmode', 'decimal');
