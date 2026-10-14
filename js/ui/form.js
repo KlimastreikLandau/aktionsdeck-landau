@@ -14,8 +14,40 @@ function text(w) {
   return w === undefined || w === null ? '' : String(w);
 }
 
-// Baut ein einzelnes Eingabefeld. Gibt { feld, extra, lesen } zurück.
-function eingabe(f, wert, vorschlaege) {
+// Foto-Knopf unter dem Feld: wählt ein Bild, lädt es hoch und trägt die ID ins Feld ein.
+function fotoBereich(feld, fotoFn) {
+  const meldung = el('p', { class: 'leise' });
+  const datei = el('input', { type: 'file', accept: 'image/*', hidden: '' });
+  const knopf = el('button', {
+    class: 'knopf knopf-hell', type: 'button', text: 'Foto aufnehmen / auswählen',
+    onclick: function () { datei.click(); }
+  });
+  datei.addEventListener('change', async function () {
+    const f = datei.files && datei.files[0];
+    if (!f) return;
+    feld.setAttribute('data-laedt', '1');
+    knopf.disabled = true;
+    meldung.className = 'leise';
+    meldung.textContent = 'Foto wird hochgeladen …';
+    try {
+      feld.value = await fotoFn(f);
+      meldung.textContent = 'Foto hochgeladen. Bitte noch speichern.';
+    } catch (e) {
+      meldung.className = 'fehler';
+      meldung.textContent = e.message;
+    }
+    feld.removeAttribute('data-laedt');
+    knopf.disabled = false;
+    datei.value = '';
+  });
+  return el('div', { class: 'foto-upload' },
+    knopf, datei, meldung,
+    el('p', { class: 'leise', text: 'Bitte keine Personen fotografieren.' })
+  );
+}
+
+// Baut ein einzelnes Eingabefeld. Gibt { feld, extra, zusatz, lesen } zurück.
+function eingabe(f, wert, vorschlaege, fotoFn) {
   if (f.typ === 'bool') {
     const cb = el('input', { type: 'checkbox', name: f.name });
     cb.checked = wert === undefined || wert === null ? true : !istFalsch(wert);
@@ -24,6 +56,7 @@ function eingabe(f, wert, vorschlaege) {
 
   let feld;
   let extra = null;
+  let zusatz = null;
   if (f.typ === 'langtext') {
     feld = el('textarea', { class: 'feld', name: f.name, rows: '4', maxlength: '5000' });
   } else if (f.typ === 'auswahl') {
@@ -37,7 +70,10 @@ function eingabe(f, wert, vorschlaege) {
   } else {
     feld = el('input', { class: 'feld', type: 'text', name: f.name, maxlength: '200' });
     if (f.typ === 'zahl') feld.setAttribute('inputmode', 'decimal');
-    if (f.typ === 'foto') feld.setAttribute('placeholder', 'Link oder ID aus Google Drive');
+    if (f.typ === 'foto') {
+      feld.setAttribute('placeholder', 'Link oder ID aus Google Drive');
+      if (fotoFn) zusatz = fotoBereich(feld, fotoFn);
+    }
     if (vorschlaege && vorschlaege.length) {
       const id = 'vorschlag-' + f.name;
       feld.setAttribute('list', id);
@@ -46,11 +82,12 @@ function eingabe(f, wert, vorschlaege) {
     }
   }
   feld.value = text(wert);
-  return { feld: feld, extra: extra, lesen: function () { return feld.value; } };
+  return { feld: feld, extra: extra, zusatz: zusatz, lesen: function () { return feld.value; } };
 }
 
 // felder: Liste aus schema.js, start: vorhandene Werte (oder {})
-// opt: { speichernText, vorschlaege: {feldname:[...]}, onSpeichern(daten) -> Promise, onAbbrechen() }
+// opt: { speichernText, vorschlaege: {feldname:[...]}, fotoUpload(datei) -> Promise<foto_id>,
+//        onSpeichern(daten) -> Promise, onAbbrechen() }
 // Wirft onSpeichern einen Fehler, steht dessen Text im Formular.
 export function baueFormular(felder, start, opt) {
   const werte = start || {};
@@ -58,7 +95,10 @@ export function baueFormular(felder, start, opt) {
   const fehler = el('p', { class: 'fehler', role: 'alert' });
 
   const eingaben = felder.map(function (f) {
-    return Object.assign({ f: f }, eingabe(f, werte[f.name], (o.vorschlaege || {})[f.name]));
+    return Object.assign(
+      { f: f },
+      eingabe(f, werte[f.name], (o.vorschlaege || {})[f.name], o.fotoUpload)
+    );
   });
 
   const label = o.speichernText || 'Speichern';
@@ -84,6 +124,7 @@ export function baueFormular(felder, start, opt) {
         e.feld,
         e.extra
       ));
+      if (e.zusatz) formular.append(e.zusatz);
     }
   });
   formular.append(fehler, knoepfe);
@@ -91,6 +132,10 @@ export function baueFormular(felder, start, opt) {
   formular.addEventListener('submit', async function (ev) {
     ev.preventDefault();
     fehler.textContent = '';
+    if (formular.querySelector('[data-laedt]')) {
+      fehler.textContent = 'Das Foto wird noch hochgeladen. Bitte kurz warten.';
+      return;
+    }
     const daten = {};
     for (let i = 0; i < eingaben.length; i++) {
       const f = eingaben[i].f;
