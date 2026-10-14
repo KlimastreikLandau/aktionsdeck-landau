@@ -340,3 +340,128 @@ textarea.feld { min-height: 96px; resize: vertical; }
 
   .platzhalter-kachel { min-height: 220px; }
 }
+
+/* ---- Z3: Balken, Kacheln, Anmeldung, Info ---- */
+
+.app-balken {
+  background: #1a1e20;
+  color: #fff;
+  /* Balken über die ganze Breite, auch wenn die App schmaler ist */
+  box-shadow: 0 0 0 100vmax #1a1e20;
+  clip-path: inset(0 -100vmax);
+}
+
+.app-balken-innen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 14px var(--abstand);
+  color: #fff;
+  text-decoration: none;
+}
+
+.balken-logo {
+  display: flex;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  padding: 4px;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.balken-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.balken-titel {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+a.knopf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.start-seite { padding-top: 24px; }
+
+.gruppen-kachel {
+  border-bottom: 6px solid var(--gruen);
+}
+
+.start-knoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin: 32px 0 16px;
+}
+
+.info-karte { margin-bottom: 16px; }
+
+.login-kopf {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: var(--abstand);
+}
+
+.login-kopf h1 { margin: 0; }
+
+.login-kopf .gruppen-logo {
+  width: 56px;
+  height: 56px;
+}
+
+.pin-wrap { position: relative; }
+
+.pin-wrap .feld { padding-right: 52px; }
+
+.pin-auge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 48px;
+  height: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-leise);
+  cursor: pointer;
+}
+
+.pin-auge:focus-visible { outline: 2px solid var(--gruppe); }
+
+.oeff-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 16px;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.oeff-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--text-leise);
+}
+
+@media (min-width: 960px) {
+  .app-balken-innen { padding: 18px var(--abstand); gap: 18px; }
+  .balken-logo { width: 56px; height: 56px; }
+  .balken-titel { font-size: 28px; }
+  .start-seite { padding-top: 40px; }
+}
