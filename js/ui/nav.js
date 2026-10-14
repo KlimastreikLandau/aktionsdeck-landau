@@ -4,6 +4,7 @@
 import { el } from './dom.js';
 import { features } from '../config.js';
 import { getName } from '../store.js';
+import { gruppenLogo } from './logo.js';
 
 export const TABS = [
   { id: 'start', label: 'Start', icon: '🏠' },
@@ -63,7 +64,10 @@ export function baueGeruest(container, ctx) {
   const tabs = sichtbareTabs();
 
   const seitenleiste = el('nav', { class: 'seitenleiste', 'aria-label': 'Hauptmenü' },
-    el('div', { class: 'seiten-kopf', text: ctx.session.name }),
+    el('div', { class: 'seiten-kopf' },
+      gruppenLogo(ctx.session.kurzname, 'seiten-logo'),
+      el('span', { text: ctx.session.name })
+    ),
     ...tabs.map(function (t) { return eintrag('nav-link', basis, t, aktiv); }),
     el('div', { class: 'seiten-fuss' },
       el('span', { class: 'leise', text: 'Angemeldet als ' + (getName() || 'unbekannt') }),
