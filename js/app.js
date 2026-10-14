@@ -132,9 +132,10 @@ async function route() {
     setzeRefresh: function (fn) { refreshFn = fn; }
   };
 
-  // Info ohne Login
+  // Impressum, Info, Datenschutz: ohne Login
   if (teile[0] === 'info') {
     setzeFarbe('');
+    ctx.seite = teile[1] || 'info';
     infoView.render(container, ctx);
     return;
   }
