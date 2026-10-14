@@ -1,8 +1,8 @@
 // sw.js
-// Lädt die App-Hülle vor. Dateien der App: zuerst Netz (immer neu geprüft), sonst Zwischenspeicher.
+// Lädt die App-Hülle vor. Dateien der App: zuerst Netz, sonst Zwischenspeicher.
 // Daten der API liegen nicht hier, sondern in IndexedDB (js/cache.js).
 
-const VERSION = '0.12.1';
+const VERSION = '0.13.0';
 const CACHE = 'aktionsdeck-' + VERSION;
 
 const HUELLE = [
@@ -28,7 +28,6 @@ const HUELLE = [
   'js/ui/logo.js',
   'js/ui/kopf.js',
   'js/ui/bild.js',
-  'js/ui/lightbox.js',
   'js/views/gruppen.js',
   'js/views/login.js',
   'js/views/start.js',
@@ -41,6 +40,7 @@ const HUELLE = [
   'js/views/material-rechnen.js',
   'js/views/material-buchen.js',
   'js/views/material-vormerken.js',
+  'js/views/todos.js',
   'icons/icon.svg',
   'icons/logo.svg'
 ];
@@ -68,8 +68,7 @@ self.addEventListener('fetch', function (event) {
   if (new URL(req.url).origin !== self.location.origin) return;
 
   event.respondWith(
-    // no-cache: Der Browser fragt den Server immer, ob die Datei neu ist (kein 10-Minuten-Zwischenspeicher)
-    fetch(req, { cache: 'no-cache' }).then(function (antwort) {
+    fetch(req).then(function (antwort) {
       if (antwort.ok) {
         const kopie = antwort.clone();
         caches.open(CACHE).then(function (c) { c.put(req, kopie); });
