@@ -520,3 +520,103 @@ a.knopf {
   /* Am PC steht das Logo schon in der Seitenleiste */
   .dash-logo { display: none; }
 }
+
+/* ---- Z6: Sammel-Ausleihe ---- */
+
+.aktionsleiste {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.auswahl-leiste {
+  position: sticky;
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: var(--flaeche);
+  border: 2px solid var(--gruppe);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+}
+
+.auswahl-leiste[hidden] { display: none; }
+
+.auswahl-box {
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.tabelle .auswahl-spalte { width: 52px; text-align: center; }
+
+.karte.mit-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.mit-box .auswahl-box { margin-top: 2px; flex: none; }
+.karten-text { flex: 1; min-width: 0; }
+
+.gesperrt { opacity: 0.45; cursor: default; }
+
+.nur-leser {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.modal-gross {
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.buch-kopf {
+  display: grid;
+  gap: 14px;
+}
+
+.buch-liste {
+  display: grid;
+  border-top: 1px solid var(--rand);
+}
+
+.buch-zeile {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rand);
+}
+
+.buch-text { display: grid; gap: 2px; }
+
+.buch-felder { display: flex; flex-wrap: wrap; gap: 12px; }
+
+.buch-feld { display: grid; gap: 2px; font-size: 14px; }
+
+.mengen-feld { width: 110px; }
+
+@media (min-width: 600px) {
+  .buch-kopf { grid-template-columns: 1fr 2fr; }
+  .buch-zeile {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 16px;
+  }
+}
+
+@media (min-width: 960px) {
+  .auswahl-leiste { bottom: 16px; }
+}
