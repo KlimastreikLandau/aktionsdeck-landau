@@ -5,9 +5,11 @@ var BASIS = ['id', 'gruppe_id', 'erstellt_am', 'erstellt_von',
              'geaendert_am', 'geaendert_von', 'geloescht'];
 
 // Daten-Tabs: nur die eigenen Spalten (BASIS kommt automatisch davor)
+// Material: typ = fest | verbrauch (leer zählt als fest)
+// Ausleihe: art = mitgenommen | zurueck | defekt
 var TABELLEN = {
   Personen: ['name', 'aktiv'],
-  Material: ['name', 'kategorie', 'unterkategorie', 'anzahl', 'einheit', 'ort', 'foto_id', 'notiz', 'aktiv'],
+  Material: ['name', 'kategorie', 'unterkategorie', 'anzahl', 'einheit', 'ort', 'foto_id', 'notiz', 'aktiv', 'typ'],
   Ausleihe: ['material_id', 'projekt_id', 'person', 'art', 'anzahl', 'datum', 'notiz'],
   ToDos: ['projekt_id', 'post_id', 'text', 'verantwortlich', 'faellig_am', 'erledigt', 'erledigt_am', 'erledigt_von', 'prioritaet', 'sortierung'],
   Projekte: ['titel', 'beschreibung', 'ort', 'status', 'start_datum', 'aktionsdatum', 'deadline', 'budget_geplant'],
@@ -63,4 +65,4 @@ function formatieren() {
     });
   });
   Logger.log('Formatierung fertig.');
-} 
+}
