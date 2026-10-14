@@ -12,6 +12,13 @@ function nurWennAenderbar(tab) {
   }
 }
 
+// Ausleihe wird nur über die Aktion "buchen" geschrieben (dort werden die Mengen geprüft).
+function nurPerBuchen(tab) {
+  if (tab === 'Ausleihe') {
+    fehler('ungueltig', 'Die Ausleihe wird nur über "buchen" geschrieben.');
+  }
+}
+
 function pruefeFelder(tab, daten) {
   if (!daten || typeof daten !== 'object' || Array.isArray(daten)) fehler('ungueltig', 'Daten fehlen.');
   Object.keys(daten).forEach(function (k) {
@@ -83,6 +90,7 @@ function aktionList(ctx, p) {
 
 function aktionCreate(ctx, p) {
   var tab = tabelleCheck(p.tabelle);
+  nurPerBuchen(tab);
   var anzeige = anzeigename(p);
   return mitSperre(function () {
     var sh = blatt(tab);
@@ -97,6 +105,7 @@ function aktionCreate(ctx, p) {
 
 function aktionBatchCreate(ctx, p) {
   var tab = tabelleCheck(p.tabelle);
+  nurPerBuchen(tab);
   var anzeige = anzeigename(p);
   if (!Array.isArray(p.liste) || p.liste.length < 1 || p.liste.length > 200) {
     fehler('ungueltig', 'Die Liste muss 1 bis 200 Einträge haben.');
@@ -163,4 +172,4 @@ function aktionDelete(ctx, p) {
     protokoll(ctx, 'delete', tab, [z.id], anzeige);
     return { eintrag: sauber(z) };
   });
-} 
+}
