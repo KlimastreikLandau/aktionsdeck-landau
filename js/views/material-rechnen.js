@@ -1,6 +1,10 @@
 // js/views/material-rechnen.js
-// Kleine Rechenhelfer für Material und Ausleihe.
-// Verfügbar = anzahl - Summe mitgenommen + Summe zurueck.
+// Rechenhelfer für Material und Ausleihe. Gleiche Regeln wie apps-script/Ausleihe.gs.
+// Festes Material: anzahl = Bestand, ausgeliehen = mitgenommen - zurueck - defekt.
+// Verbrauchsmaterial: anzahl = aktueller Vorrat, es wird nichts als "draußen" gezählt.
+
+import { istFalsch } from '../schema.js';
+import { getName } from '../store.js';
 
 export function zahl(v) {
   const n = Number(v);
@@ -11,22 +15,54 @@ export function runden(n) {
   return Math.round(n * 100) / 100;
 }
 
-// Pro Material: Summe zurueck minus Summe mitgenommen
-export function bewegung(ausleihen) {
+export function istVerbrauch(m) {
+  return String(m.typ || '').trim().toLowerCase() === 'verbrauch';
+}
+
+// Pro Material: mitgenommen minus zurueck minus defekt
+export function ausgeliehen(ausleihen) {
   const m = {};
   ausleihen.forEach(function (a) {
     const id = String(a.material_id);
-    if (a.art === 'mitgenommen') m[id] = (m[id] || 0) - zahl(a.anzahl);
-    else if (a.art === 'zurueck') m[id] = (m[id] || 0) + zahl(a.anzahl);
+    if (a.art === 'mitgenommen') m[id] = (m[id] || 0) + zahl(a.anzahl);
+    else if (a.art === 'zurueck' || a.art === 'defekt') m[id] = (m[id] || 0) - zahl(a.anzahl);
   });
+  Object.keys(m).forEach(function (id) { m[id] = runden(m[id]); });
   return m;
 }
 
-export function mitVerfuegbar(m, bew) {
-  const v = m.anzahl === '' || m.anzahl === undefined
-    ? ''
-    : runden(zahl(m.anzahl) + (bew[String(m.id)] || 0));
-  return Object.assign({}, m, { _verfuegbar: v });
+// Ergänzt: _verfuegbar, _draussen, _verbrauch
+export function mitVerfuegbar(m, out) {
+  const verbrauch = istVerbrauch(m);
+  const hat = !(m.anzahl === '' || m.anzahl === undefined || m.anzahl === null);
+  const draussen = verbrauch ? 0 : (out[String(m.id)] || 0);
+  let v = '';
+  if (hat) v = verbrauch ? runden(zahl(m.anzahl)) : runden(zahl(m.anzahl) - draussen);
+  return Object.assign({}, m, { _verfuegbar: v, _draussen: draussen, _verbrauch: verbrauch });
+}
+
+// Darf dieses Material für die Buchung ausgewählt werden? z kommt aus mitVerfuegbar.
+// art: 'mitgenommen' oder 'zurueck'
+export function auswaehlbar(z, art) {
+  if (art === 'mitgenommen') {
+    if (istFalsch(z.aktiv)) return false;
+    if (z._verbrauch) return z._verfuegbar !== '' && z._verfuegbar > 0;
+    return z._verfuegbar === '' || z._verfuegbar > 0;
+  }
+  return z._verbrauch ? true : z._draussen > 0;
+}
+
+// Namen für die Vorschläge: dein Name plus alle aus früheren Buchungen
+export function personenAus(ausleihen) {
+  const liste = [];
+  const merke = function (p) {
+    const t = String(p || '').trim();
+    if (t && liste.indexOf(t) < 0) liste.push(t);
+  };
+  merke(getName());
+  ausleihen.forEach(function (a) { merke(a.person); });
+  liste.sort(function (a, b) { return a.localeCompare(b, 'de'); });
+  return liste;
 }
 
 export function zeitText(iso) {
