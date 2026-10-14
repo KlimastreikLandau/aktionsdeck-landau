@@ -2,7 +2,7 @@
 // Lädt die App-Hülle vor. Dateien der App: zuerst Netz, sonst Zwischenspeicher.
 // Daten der API liegen nicht hier, sondern in IndexedDB (js/cache.js).
 
-const VERSION = '0.7.1';
+const VERSION = '0.8.0';
 const CACHE = 'aktionsdeck-' + VERSION;
 
 const HUELLE = [
@@ -25,6 +25,7 @@ const HUELLE = [
   'js/ui/table.js',
   'js/ui/detail.js',
   'js/ui/form.js',
+  'js/ui/logo.js',
   'js/views/gruppen.js',
   'js/views/login.js',
   'js/views/start.js',
@@ -35,7 +36,8 @@ const HUELLE = [
   'js/views/material-detail.js',
   'js/views/material-rechnen.js',
   'js/views/material-ausleihe.js',
-  'icons/icon.svg'
+  'icons/icon.svg',
+  'icons/logo.svg'
 ];
 
 self.addEventListener('install', function (event) {
