@@ -647,3 +647,86 @@ a.knopf {
 }
 
 .foto-upload p { margin: 0; font-size: 14px; }
+
+/* ---- 0.12.1: Seitenleiste, Meldungen mittig, Foto groß ---- */
+
+/* Logo links, Kurzname rechts daneben */
+.seiten-kopf {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.seiten-logo { width: 56px; height: 56px; }
+.seiten-kopf span { font-size: 20px; }
+
+/* Meldungen mittig im Bildschirm */
+.toast {
+  top: 50%;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  max-width: 90%;
+  padding: 18px 26px;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  animation: toast-ein 0.2s ease-out;
+}
+
+@keyframes toast-ein {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}
+
+/* Foto im Detail anklickbar */
+.foto-knopf {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.foto-knopf:focus-visible { outline: 3px solid var(--gruppe); border-radius: var(--radius); }
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.85);
+  cursor: zoom-out;
+}
+
+.lightbox-bild {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius);
+}
+
+.lightbox-fehler { color: #fff; font-size: 18px; }
+
+.lightbox-zu {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: 12px;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--text);
+  font-size: 22px;
+  cursor: pointer;
+}
