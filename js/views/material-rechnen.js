@@ -41,9 +41,10 @@ export function mitVerfuegbar(m, out) {
   return Object.assign({}, m, { _verfuegbar: v, _draussen: draussen, _verbrauch: verbrauch });
 }
 
-// Darf dieses Material für die Buchung ausgewählt werden? z kommt aus mitVerfuegbar.
-// art: 'mitgenommen' oder 'zurueck'
+// Darf dieses Material für die Aktion ausgewählt werden? z kommt aus mitVerfuegbar.
+// art: 'mitgenommen', 'zurueck' oder 'vormerken'
 export function auswaehlbar(z, art) {
+  if (art === 'vormerken') return !istFalsch(z.aktiv);
   if (art === 'mitgenommen') {
     if (istFalsch(z.aktiv)) return false;
     if (z._verbrauch) return z._verfuegbar !== '' && z._verfuegbar > 0;
