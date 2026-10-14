@@ -12,7 +12,14 @@ export const TABS = [
   { id: 'projekte', label: 'Projekte', icon: '📁' },
   { id: 'posts', label: 'Posts', icon: '📣' },
   { id: 'kalender', label: 'Kalender', icon: '📅' },
-  { id: 'info', label: 'Info', icon: 'ℹ️' }
+  { id: 'hilfe', label: 'Hilfe', icon: '❓' }
+];
+
+// Öffentliche Seiten (ohne Login): Reihenfolge wie auf der Startseite
+export const OEFFENTLICH = [
+  { id: 'impressum', label: 'Impressum' },
+  { id: 'info', label: 'Info' },
+  { id: 'datenschutz', label: 'Datenschutz' }
 ];
 
 const MEHR = { id: 'mehr', label: 'Mehr', icon: '⋯' };
@@ -26,6 +33,15 @@ export function tabLabel(id) {
   if (id === 'mehr') return 'Mehr';
   const t = TABS.find(function (x) { return x.id === id; });
   return t ? t.label : id;
+}
+
+// Kleine Links zu den öffentlichen Seiten
+export function oeffentlicheLinks() {
+  return el('div', { class: 'oeff-links' },
+    ...OEFFENTLICH.map(function (o) {
+      return el('a', { href: '#/info/' + o.id, text: o.label });
+    })
+  );
 }
 
 function eintrag(klasse, basis, t, aktiv) {
@@ -52,7 +68,8 @@ export function baueGeruest(container, ctx) {
     el('div', { class: 'seiten-fuss' },
       el('span', { class: 'leise', text: 'Angemeldet als ' + (getName() || 'unbekannt') }),
       el('button', { class: 'knopf knopf-hell', type: 'button', text: 'Name ändern', onclick: ctx.nameAendern }),
-      el('button', { class: 'knopf knopf-hell', type: 'button', text: 'Abmelden', onclick: ctx.abmelden })
+      el('button', { class: 'knopf knopf-hell', type: 'button', text: 'Abmelden', onclick: ctx.abmelden }),
+      oeffentlicheLinks()
     )
   );
 
