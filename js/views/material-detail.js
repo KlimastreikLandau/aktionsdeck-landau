@@ -56,15 +56,18 @@ function artText(a) {
   return 'zurück';
 }
 
+function neuesteZuerst(liste) {
+  return liste.slice().sort(function (a, b) {
+    return String(b.erstellt_am || '').localeCompare(String(a.erstellt_am || ''));
+  });
+}
+
 function verlaufListe(verlauf) {
   if (!verlauf.length) {
     return el('p', { class: 'leise', text: 'Noch nichts ausgeliehen.' });
   }
-  const sortiert = verlauf.slice().sort(function (a, b) {
-    return String(b.erstellt_am || '').localeCompare(String(a.erstellt_am || ''));
-  }).slice(0, 10);
   const ul = el('ul', { class: 'verlauf' });
-  sortiert.forEach(function (a) {
+  neuesteZuerst(verlauf).slice(0, 10).forEach(function (a) {
     const text = [
       datumText(a.datum || a.erstellt_am),
       artText(a.art),
@@ -82,6 +85,8 @@ export function baueDetail(m, verlauf) {
   const einheit = m.einheit ? ' ' + m.einheit : '';
   const kat = [m.kategorie, m.unterkategorie].filter(Boolean).join(' › ');
   const hat = m.anzahl !== '' && m.anzahl !== undefined && m.anzahl !== null;
+  const letzte = neuesteZuerst(verlauf.filter(function (a) { return a.art === 'mitgenommen'; }))[0];
+
   const zeilen = [
     ['Art', m._verbrauch ? 'Verbrauchsmaterial' : 'Festes Material'],
     ['Kategorie', kat],
@@ -92,7 +97,17 @@ export function baueDetail(m, verlauf) {
     zeilen.push(['Verfügbar', m._verfuegbar === '' ? '' : m._verfuegbar + einheit]);
     zeilen.push(['Gerade ausgeliehen', m._draussen + einheit]);
   }
-  const box = el('div', null, foto(m), paare(zeilen));
+  if (letzte) {
+    zeilen.push(['Zuletzt mitgenommen',
+      [String(letzte.person || ''), datumText(letzte.datum || letzte.erstellt_am)]
+        .filter(Boolean).join(', ')]);
+  }
+
+  const box = el('div', null);
+  if (!m._verbrauch && m._draussen > 0) {
+    box.append(el('p', { class: 'gebucht-hinweis', text: 'Gebucht: ' + m._draussen + einheit + ' ausgeliehen' }));
+  }
+  box.append(foto(m), paare(zeilen));
   if (m.notiz) {
     box.append(el('h3', { text: 'Notiz' }), el('p', { class: 'notiz', text: String(m.notiz) }));
   }
