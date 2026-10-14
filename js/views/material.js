@@ -1,30 +1,46 @@
 // js/views/material.js
 // Reiter Material: Liste mit Suche, Kategorie- und Status-Filter, Details, Anlegen, Ändern,
-// Löschen und Sammel-Ausleihe (Ausleihen / Zurückgeben mit Checkboxen).
+// Löschen, Sammel-Ausleihe (Ausleihen / Zurückgeben) und Vormerken für Projekte.
+// Die Auswahl bleibt beim Reiterwechsel erhalten (Merker außerhalb von render).
 
 import { el, leeren } from '../ui/dom.js';
 import { api } from '../api.js';
 import { ladeMitCache } from '../cache.js';
+import { features } from '../config.js';
 import { zeigeListe } from '../ui/table.js';
 import { zeigeDetail, schliesseDetail } from '../ui/detail.js';
 import { baueFormular } from '../ui/form.js';
+import { verkleinern } from '../ui/bild.js';
 import { toast } from '../ui/toast.js';
 import { baueDetail, fotoId } from './material-detail.js';
 import { zeigeBuchenDialog } from './material-buchen.js';
+import { zeigeVormerkDialog } from './material-vormerken.js';
 import {
   ausgeliehen, mitVerfuegbar, auswaehlbar, personenAus, zeitText
 } from './material-rechnen.js';
 import { istFalsch, SCHEMA } from '../schema.js';
 
+// Bleibt beim Reiterwechsel erhalten. Neue Anmeldung (anderes Token) = leer.
+let merk = { token: '', modus: null, gewaehlt: {} };
+
+const OK_TEXT = { mitgenommen: 'Ausbuchen', zurueck: 'Zurückbuchen', vormerken: 'Vormerken' };
+const HINWEIS = {
+  mitgenommen: 'Wähle das Material aus, das du mitnimmst. Suche und Filter funktionieren weiter.',
+  zurueck: 'Wähle aus, was zurückkommt. Hier steht festes Material, das draußen ist, und Verbrauchsmaterial.',
+  vormerken: 'Wähle das Material, das du für ein Projekt vormerken willst. Du kannst auch in andere Reiter wechseln, die Auswahl bleibt.'
+};
+
 export async function render(container, ctx) {
   const s = ctx.session;
   leeren(container);
 
+  if (merk.token !== s.token) merk = { token: s.token, modus: null, gewaehlt: {} };
+
   let daten = { material: [], ausleihe: [] };
   let offenId = null;
   let formOffen = false;
-  let modus = null;     // null | 'mitgenommen' | 'zurueck'
-  let gewaehlt = {};    // { materialId: true }
+  let modus = merk.modus;        // null | 'mitgenommen' | 'zurueck' | 'vormerken'
+  let gewaehlt = merk.gewaehlt;  // { materialId: true }
 
   const status = el('p', { class: 'leise', text: 'Lade Daten …' });
   const suche = el('input', {
@@ -50,6 +66,10 @@ export async function render(container, ctx) {
     el('button', {
       class: 'knopf knopf-hell', type: 'button', text: 'Zurückgeben',
       onclick: function () { modusSetzen('zurueck'); }
+    }),
+    el('button', {
+      class: 'knopf knopf-hell', type: 'button', text: 'Vormerken',
+      onclick: function () { modusSetzen('vormerken'); }
     })
   );
   const hinweis = el('p', { class: 'leise' });
@@ -79,9 +99,11 @@ export async function render(container, ctx) {
   // ---- Auswahl-Modus ----
 
   function leisteAktualisieren() {
+    merk.modus = modus;
+    merk.gewaehlt = gewaehlt;
     const n = Object.keys(gewaehlt).length;
     zaehler.textContent = n + ' ausgewählt';
-    okKnopf.textContent = modus === 'zurueck' ? 'Zurückbuchen' : 'Ausbuchen';
+    okKnopf.textContent = OK_TEXT[modus] || 'OK';
     okKnopf.disabled = n === 0;
   }
 
@@ -90,9 +112,7 @@ export async function render(container, ctx) {
     hinweis.hidden = !modus;
     leiste.hidden = !modus;
     neuKnopf.disabled = !!modus;
-    hinweis.textContent = modus === 'mitgenommen'
-      ? 'Wähle das Material aus, das du mitnimmst. Suche und Filter funktionieren weiter.'
-      : 'Wähle aus, was zurückkommt. Hier steht festes Material, das draußen ist, und Verbrauchsmaterial.';
+    hinweis.textContent = HINWEIS[modus] || '';
     leisteAktualisieren();
   }
 
@@ -119,11 +139,22 @@ export async function render(container, ctx) {
     const z = mitVerfuegbar(m, ausgeliehen(daten.ausleihe));
     if (auswaehlbar(z, art)) {
       gewaehlt[m.id] = true;
+    } else if (art === 'mitgenommen') {
+      toast('Davon ist nichts verfügbar.');
+    } else if (art === 'zurueck') {
+      toast('Davon ist nichts ausgeliehen.');
     } else {
-      toast(art === 'mitgenommen' ? 'Davon ist nichts verfügbar.' : 'Davon ist nichts ausgeliehen.');
+      toast('Nicht aktives Material kann nicht vorgemerkt werden.');
     }
     leisteAktualisieren();
     zeichne();
+  }
+
+  function fertig() {
+    modus = null;
+    gewaehlt = {};
+    modusAnzeige();
+    return laden(false);
   }
 
   function buchenOeffnen() {
@@ -133,6 +164,11 @@ export async function render(container, ctx) {
       .map(function (m) { return mitVerfuegbar(m, out); })
       .sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'de'); });
     if (!items.length) return;
+
+    if (modus === 'vormerken') {
+      zeigeVormerkDialog({ ctx: ctx, token: s.token, items: items, onFertig: fertig });
+      return;
+    }
     zeigeBuchenDialog({
       ctx: ctx,
       token: s.token,
@@ -144,12 +180,7 @@ export async function render(container, ctx) {
         const aktuell = ausgeliehen(daten.ausleihe);
         return daten.material.map(function (m) { return mitVerfuegbar(m, aktuell); });
       },
-      onFertig: async function () {
-        modus = null;
-        gewaehlt = {};
-        modusAnzeige();
-        await laden(false);
-      }
+      onFertig: fertig
     });
   }
 
@@ -197,6 +228,10 @@ export async function render(container, ctx) {
         el('button', {
           class: 'knopf', type: 'button', text: 'Zurückgeben',
           onclick: function () { startMitMaterial('zurueck', m); }
+        }),
+        el('button', {
+          class: 'knopf', type: 'button', text: 'Vormerken',
+          onclick: function () { startMitMaterial('vormerken', m); }
         })
       ),
       el('div', { class: 'detail-knoepfe' },
@@ -219,6 +254,17 @@ export async function render(container, ctx) {
 
   // ---- Formular: m = null heißt neu anlegen ----
 
+  async function fotoHochladen(datei) {
+    const bild = await verkleinern(datei);
+    try {
+      const r = await api('uploadImage', { bild: bild, mime: 'image/jpeg' }, s.token);
+      return r.foto_id;
+    } catch (e) {
+      if (ctx.behandleFehler(e)) throw new Error('Bitte neu anmelden.');
+      throw e;
+    }
+  }
+
   function formZeigen(m) {
     formOffen = true;
     const neuAnlegen = !m;
@@ -228,6 +274,7 @@ export async function render(container, ctx) {
         kategorie: werteVon('kategorie'),
         unterkategorie: werteVon('unterkategorie')
       },
+      fotoUpload: features.fotoUpload ? fotoHochladen : null,
       onSpeichern: function (d) { return speichern(m, d); },
       onAbbrechen: function () { formSchliessen(m); }
     });
@@ -363,7 +410,13 @@ export async function render(container, ctx) {
         { name: 'ort', label: 'Ort' },
         { name: '_art', label: 'Art', wert: function (z) { return z._verbrauch ? 'Verbrauch' : 'Fest'; } },
         { name: 'anzahl', label: 'Anzahl', zahl: true },
-        { name: '_verfuegbar', label: 'Verfügbar', zahl: true }
+        { name: '_verfuegbar', label: 'Verfügbar', zahl: true },
+        {
+          name: '_draussen',
+          label: 'Ausgeliehen',
+          zahl: true,
+          wert: function (z) { return z._verbrauch || !z._draussen ? '' : z._draussen; }
+        }
       ],
       function (z) {
         const einheit = z.einheit ? ' ' + z.einheit : '';
@@ -378,7 +431,7 @@ export async function render(container, ctx) {
           zeilen: [
             [z.kategorie, z.ort, z._verbrauch ? 'Verbrauch' : ''].filter(Boolean).join(' · '),
             mengen,
-            modus === 'zurueck' && !z._verbrauch ? 'Draußen: ' + z._draussen + einheit : ''
+            !z._verbrauch && z._draussen > 0 ? 'Draußen: ' + z._draussen + einheit : ''
           ]
         };
       },
