@@ -465,3 +465,58 @@ a.knopf {
   .balken-titel { font-size: 28px; }
   .start-seite { padding-top: 40px; }
 }
+
+/* ---- Z4: Start-Dashboard und Logo in der Seitenleiste ---- */
+
+.dash-kopf {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: var(--abstand);
+}
+
+.dash-kopf h1 { margin: 0; }
+
+.dash-logo {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  object-fit: contain;
+}
+
+.dash-raster {
+  display: grid;
+  gap: 12px;
+}
+
+.dash-kachel {
+  min-height: 100px;
+  margin-bottom: 0;
+  border-top: 5px solid var(--gruppe);
+}
+
+.dash-kachel h2 { margin: 0 0 6px; font-size: 18px; }
+.dash-kachel p { margin: 0; }
+
+.seiten-kopf {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.seiten-logo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+}
+
+@media (min-width: 600px) {
+  .dash-raster { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 960px) {
+  .dash-raster { grid-template-columns: repeat(3, 1fr); }
+  /* Am PC steht das Logo schon in der Seitenleiste */
+  .dash-logo { display: none; }
+}
