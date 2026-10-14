@@ -3,7 +3,9 @@
 
 import { VERSION, REFRESH_SEKUNDEN } from './config.js';
 import { api } from './api.js';
-import { getSession, clearSession, getName, setName } from './store.js';
+import {
+  getSession, clearSession, getName, setName, getGruppenCache, setGruppenCache
+} from './store.js';
 import { cacheLeeren } from './cache.js';
 import { baueGeruest, sichtbareTabs, tabLabel } from './ui/nav.js';
 import { frageName } from './ui/modal.js';
@@ -12,21 +14,34 @@ import * as gruppenView from './views/gruppen.js';
 import * as loginView from './views/login.js';
 import * as infoView from './views/info.js';
 
-let gruppenListe = null;
+let gruppenListe = null;   // frisch vom Server (einmal pro Seitenaufruf)
+let gruppenLaeuft = null;  // laufende Anfrage
 let refreshFn = null;
 let laufNummer = 0;
 let nameFrageOffen = false;
 const geladeneViews = {};
 
-async function ladeGruppen() {
-  if (gruppenListe) return gruppenListe;
-  try {
-    gruppenListe = await api('gruppen');
-    return gruppenListe;
-  } catch (e) {
-    console.warn('Gruppen laden fehlgeschlagen:', e);
-    return null;
+// Sofort verfügbar: frische Liste oder die im Gerät gemerkte
+function gruppenSofort() {
+  return gruppenListe || getGruppenCache();
+}
+
+function ladeGruppen() {
+  if (gruppenListe) return Promise.resolve(gruppenListe);
+  if (!gruppenLaeuft) {
+    gruppenLaeuft = api('gruppen').then(function (liste) {
+      gruppenLaeuft = null;
+      if (!Array.isArray(liste)) return null;
+      gruppenListe = liste;
+      setGruppenCache(liste);
+      return liste;
+    }).catch(function (e) {
+      console.warn('Gruppen laden fehlgeschlagen:', e);
+      gruppenLaeuft = null;
+      return null;
+    });
   }
+  return gruppenLaeuft;
 }
 
 // Wählt Weiß oder Dunkelgrau, je nachdem, was auf der Farbe besser lesbar ist.
@@ -108,6 +123,7 @@ async function route() {
 
   const ctx = {
     ladeGruppen: ladeGruppen,
+    gruppenSofort: gruppenSofort,
     neuLaden: route,
     version: VERSION,
     abmelden: abmelden,
@@ -124,9 +140,23 @@ async function route() {
   }
 
   if (teile[0] === 'g' && teile[1]) {
-    const gruppen = await ladeGruppen();
-    if (nummer !== laufNummer) return;
-    const g = gruppen && gruppen.find(function (x) { return x.kurzname === teile[1]; });
+    const finde = function (liste) {
+      return liste && liste.find(function (x) { return x.kurzname === teile[1]; });
+    };
+
+    // Erst die gemerkte Liste nehmen (schnell), im Hintergrund auffrischen.
+    let g = finde(gruppenSofort());
+    if (g) {
+      const alt = g;
+      ladeGruppen().then(function (frisch) {
+        const neu = finde(frisch);
+        if (neu && nummer === laufNummer && neu.farbe !== alt.farbe) setzeFarbe(neu.farbe);
+      });
+    } else {
+      g = finde(await ladeGruppen());
+      if (nummer !== laufNummer) return;
+    }
+
     if (!g) {
       setzeFarbe('');
       location.hash = '#/';
