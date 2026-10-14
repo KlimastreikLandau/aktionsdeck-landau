@@ -11,7 +11,7 @@ export function balken() {
       'aria-label': 'AktionsDeck Landau, zur Gruppenwahl'
     },
       el('span', { class: 'balken-logo' },
-        el('img', { src: 'icons/logo.svg', alt: '' })
+        el('img', { src: 'icons/icon.svg', alt: '' })
       ),
       el('span', { class: 'balken-titel', text: 'AktionsDeck Landau' })
     )
