@@ -620,3 +620,30 @@ a.knopf {
 @media (min-width: 960px) {
   .auswahl-leiste { bottom: 16px; }
 }
+
+/* ---- Z7/Z8 und Anpassungen ---- */
+
+/* Logo im Balken ohne weißen Rahmen */
+.balken-logo {
+  padding: 0;
+  background: none;
+  border-radius: 0;
+}
+
+.gebucht-hinweis {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-left: 6px solid var(--gruppe);
+  border-radius: var(--radius);
+  background: var(--gruen-hell);
+  font-weight: 600;
+}
+
+.foto-upload {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  margin-top: -6px;
+}
+
+.foto-upload p { margin: 0; font-size: 14px; }
