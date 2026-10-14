@@ -2,6 +2,7 @@
 // Baut den Inhalt der Detailansicht für ein Material.
 
 import { el } from '../ui/dom.js';
+import { zeigeBild } from '../ui/lightbox.js';
 
 // Nimmt nur die Datei-ID. Erkennt sie auch in einem ganzen Drive-Link.
 export function fotoId(wert) {
@@ -23,10 +24,11 @@ function foto(m) {
   const id = fotoId(m.foto_id);
   if (!id) return el('p', { class: 'leise', text: 'Kein Foto.' });
   const box = el('div', { class: 'detail-foto-box' });
+  const beschr = 'Foto: ' + String(m.name);
   const img = el('img', {
     class: 'detail-foto',
     src: 'https://drive.google.com/thumbnail?id=' + id + '&sz=w800',
-    alt: 'Foto: ' + String(m.name),
+    alt: beschr,
     loading: 'lazy',
     referrerpolicy: 'no-referrer'
   });
@@ -37,7 +39,14 @@ function foto(m) {
       text: 'Das Foto konnte nicht geladen werden. Prüfe die Freigabe in Google Drive.'
     }));
   });
-  box.append(img);
+  box.append(el('button', {
+    class: 'foto-knopf',
+    type: 'button',
+    'aria-label': 'Foto vergrößern',
+    onclick: function () {
+      zeigeBild('https://drive.google.com/thumbnail?id=' + id + '&sz=w1600', beschr);
+    }
+  }, img));
   return box;
 }
 
