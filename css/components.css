@@ -730,3 +730,25 @@ a.knopf {
   font-size: 22px;
   cursor: pointer;
 }
+
+/* ---- Etappe 3: ToDos ---- */
+
+/* Erledigte ToDos: grau und durchgestrichen, aber weiter sichtbar */
+.tabelle tr.erledigt td {
+  color: var(--text-leise);
+  text-decoration: line-through;
+  background: #f6f8f7;
+}
+
+.karte.erledigt { background: #f6f8f7; }
+
+.karte.erledigt .karten-text,
+.karte.erledigt .karten-text p {
+  color: var(--text-leise);
+  text-decoration: line-through;
+}
+
+p.notiz.erledigt {
+  color: var(--text-leise);
+  text-decoration: line-through;
+}
