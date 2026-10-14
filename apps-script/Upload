@@ -1,0 +1,43 @@
+// Upload.gs – Aktion "uploadImage": speichert ein verkleinertes JPEG im Drive-Ordner.
+// Ordner-ID steht nur in den Skripteigenschaften (FOTO_ORDNER_ID).
+// Aufruf: { aktion:'uploadImage', token, bild:'<base64 ohne Präfix>', mime:'image/jpeg' }
+// Antwort: { foto_id }
+
+function aktionUploadImage(ctx, p) {
+  var ordnerId = PropertiesService.getScriptProperties().getProperty('FOTO_ORDNER_ID');
+  if (!ordnerId) fehler('intern', 'Der Foto-Ordner ist nicht eingerichtet (FOTO_ORDNER_ID).');
+
+  var b64 = String(p.bild === undefined || p.bild === null ? '' : p.bild);
+  if (!b64) fehler('ungueltig', 'Das Bild fehlt.');
+  if (b64.length > 4000000) fehler('ungueltig', 'Das Bild ist zu groß.');
+  if (p.mime !== 'image/jpeg') fehler('ungueltig', 'Nur JPEG-Bilder sind erlaubt.');
+
+  var bytes;
+  try { bytes = Utilities.base64Decode(b64); }
+  catch (e) { fehler('ungueltig', 'Das Bild ist ungültig.'); }
+  if (bytes.length < 4 || (bytes[0] & 255) !== 255 || (bytes[1] & 255) !== 216 || (bytes[2] & 255) !== 255) {
+    fehler('ungueltig', 'Das ist kein gültiges JPEG-Bild.');
+  }
+
+  var anzeige = anzeigename(p);
+  var name = 'material_' + jetzt().replace(/[^0-9]/g, '') + '_' + Utilities.getUuid().slice(0, 6) + '.jpg';
+  var blob = Utilities.newBlob(bytes, 'image/jpeg', name);
+  var datei;
+  try {
+    datei = DriveApp.getFolderById(ordnerId).createFile(blob);
+  } catch (e2) {
+    Logger.log(String(e2));
+    fehler('intern', 'Das Foto konnte nicht gespeichert werden.');
+  }
+  try { datei.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); }
+  catch (e3) { /* Der Ordner gibt die Freigabe meist schon weiter */ }
+
+  protokoll(ctx, 'upload', 'Material', [datei.getId()], anzeige);
+  return { foto_id: datei.getId() };
+}
+
+// EINMAL im Editor ausführen: fragt die Drive-Berechtigung ab und prüft den Ordner.
+function testenFotoOrdner() {
+  var id = PropertiesService.getScriptProperties().getProperty('FOTO_ORDNER_ID');
+  Logger.log('Ordner: ' + DriveApp.getFolderById(id).getName());
+}
