@@ -140,6 +140,10 @@ export async function render(container, ctx) {
       items: items,
       personen: personenAus(daten.ausleihe),
       neuLaden: function () { return laden(false); },
+      frisch: function () {
+        const aktuell = ausgeliehen(daten.ausleihe);
+        return daten.material.map(function (m) { return mitVerfuegbar(m, aktuell); });
+      },
       onFertig: async function () {
         modus = null;
         gewaehlt = {};
