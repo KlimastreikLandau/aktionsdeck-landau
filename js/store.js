@@ -1,8 +1,9 @@
 // js/store.js
-// Merkt sich im Gerät: die Anmeldung (Token) und den Anzeigenamen.
+// Merkt sich im Gerät: die Anmeldung (Token), den Anzeigenamen und die Gruppenliste.
 
 const KEY = 'aktionsdeck_session';
 const NAME_KEY = 'aktionsdeck_name';
+const GRUPPEN_KEY = 'aktionsdeck_gruppen';
 
 export function getSession() {
   try {
@@ -28,4 +29,18 @@ export function getName() {
 
 export function setName(n) {
   try { localStorage.setItem(NAME_KEY, String(n).trim().slice(0, 60)); } catch (e) { /* ignorieren */ }
+}
+
+// Gruppenliste (öffentlich): damit die Startseite sofort da ist
+export function getGruppenCache() {
+  try {
+    const l = JSON.parse(localStorage.getItem(GRUPPEN_KEY));
+    return Array.isArray(l) && l.length ? l : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+export function setGruppenCache(liste) {
+  try { localStorage.setItem(GRUPPEN_KEY, JSON.stringify(liste)); } catch (e) { /* ignorieren */ }
 }
