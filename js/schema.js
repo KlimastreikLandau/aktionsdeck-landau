@@ -9,6 +9,7 @@ export const SCHEMA = {
       { name: 'name', label: 'Name', typ: 'text', pflicht: true },
       { name: 'kategorie', label: 'Kategorie', typ: 'text' },
       { name: 'unterkategorie', label: 'Unterkategorie', typ: 'text' },
+      { name: 'typ', label: 'Art (fest = Pavillon, verbrauch = Flyer)', typ: 'auswahl', optionen: ['fest', 'verbrauch'] },
       { name: 'anzahl', label: 'Anzahl', typ: 'zahl' },
       { name: 'einheit', label: 'Einheit', typ: 'text' },
       { name: 'ort', label: 'Ort', typ: 'text' },
@@ -23,7 +24,7 @@ export const SCHEMA = {
       { name: 'material_id', label: 'Material', typ: 'text', pflicht: true },
       { name: 'projekt_id', label: 'Projekt', typ: 'text' },
       { name: 'person', label: 'Person', typ: 'text' },
-      { name: 'art', label: 'Art', typ: 'auswahl', optionen: ['mitgenommen', 'zurueck'] },
+      { name: 'art', label: 'Art', typ: 'auswahl', optionen: ['mitgenommen', 'zurueck', 'defekt'] },
       { name: 'anzahl', label: 'Anzahl', typ: 'zahl', pflicht: true },
       { name: 'datum', label: 'Datum', typ: 'text' },
       { name: 'notiz', label: 'Notiz', typ: 'langtext' }
