@@ -217,3 +217,126 @@ textarea.feld { min-height: 96px; resize: vertical; }
 .formfeld-bool input { width: 22px; height: 22px; }
 
 .form-knoepfe { display: flex; gap: 12px; flex-wrap: wrap; }
+
+
+/* ---- Startseite (Gruppenwahl) ---- */
+
+.start-seite {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--abstand);
+}
+
+.start-kopf {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  margin: 16px 0 24px;
+}
+
+.start-kopf h1 { margin: 0 0 4px; }
+.start-kopf p { margin: 0; }
+
+.start-logo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+}
+
+.gruppen-raster {
+  display: grid;
+  gap: 12px;
+}
+
+.gruppen-kachel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 14px 10px 10px;
+  background: var(--flaeche);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.gruppen-kachel:hover { background: var(--gruen-hell); }
+
+.kachel-strich {
+  order: -1;
+  align-self: stretch;
+  width: 8px;
+  flex: none;
+  border-radius: 4px;
+  background: var(--gruen);
+}
+
+.gruppen-logo {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  object-fit: contain;
+}
+
+.kachel-name { font-weight: 700; }
+
+.platzhalter-kachel {
+  min-height: 64px;
+  border-radius: var(--radius);
+  background: #e3ebe8;
+  animation: platzhalter-puls 1.4s ease-in-out infinite;
+}
+
+@keyframes platzhalter-puls {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .platzhalter-kachel { animation: none; }
+}
+
+.start-info {
+  text-align: center;
+  margin-top: 28px;
+}
+
+@media (min-width: 960px) {
+  .start-kopf {
+    flex-direction: row;
+    justify-content: center;
+    gap: 20px;
+    margin: 40px 0 32px;
+    text-align: left;
+  }
+
+  .start-logo { width: 96px; height: 96px; }
+
+  .gruppen-raster {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  .gruppen-kachel {
+    flex-direction: column;
+    justify-content: center;
+    gap: 14px;
+    min-height: 220px;
+    padding: 28px 16px 22px;
+    text-align: center;
+  }
+
+  .gruppen-logo { width: 96px; height: 96px; }
+
+  .kachel-strich {
+    order: 0;
+    align-self: auto;
+    width: 60%;
+    height: 5px;
+  }
+
+  .platzhalter-kachel { min-height: 220px; }
+}
