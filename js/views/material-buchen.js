@@ -34,7 +34,7 @@ function infoText(z, aus) {
 }
 
 // opt: { ctx, token, art ('mitgenommen'|'zurueck'), items (aus mitVerfuegbar),
-//        personen, neuLaden(), onFertig() }
+//        personen, neuLaden() -> Promise, frisch() -> aktuelle Liste aus mitVerfuegbar, onFertig() }
 export function zeigeBuchenDialog(opt) {
   const aus = opt.art === 'mitgenommen';
   const fehler = el('p', { class: 'fehler', role: 'alert' });
@@ -76,15 +76,25 @@ export function zeigeBuchenDialog(opt) {
       felder.append(el('label', { class: 'buch-feld' },
         el('span', { class: 'leise', text: 'davon defekt' }), defekt));
     }
+    const info = el('span', { class: 'leise', text: infoText(z, aus) });
     const zeile = el('div', { class: 'buch-zeile' },
-      el('div', { class: 'buch-text' },
-        el('strong', { text: String(z.name) }),
-        el('span', { class: 'leise', text: infoText(z, aus) })
-      ),
+      el('div', { class: 'buch-text' }, el('strong', { text: String(z.name) }), info),
       felder
     );
-    return { z: z, feld: feld, defekt: defekt, zeile: zeile };
+    return { z: z, feld: feld, defekt: defekt, info: info, zeile: zeile };
   });
+
+  // Holt die aktuellen Mengen und ändert Anzeige und Prüfung. Eingaben bleiben stehen.
+  function aktualisieren() {
+    if (!opt.frisch) return;
+    const neu = opt.frisch();
+    reihen.forEach(function (r) {
+      const n = neu.find(function (x) { return String(x.id) === String(r.z.id); });
+      if (!n) return;
+      r.z = n;
+      r.info.textContent = infoText(n, aus);
+    });
+  }
 
   const ok = el('button', { class: 'knopf', type: 'submit', text: 'OK' });
   const abbrechen = el('button', { class: 'knopf knopf-hell', type: 'button', text: 'Abbrechen' });
@@ -105,7 +115,11 @@ export function zeigeBuchenDialog(opt) {
     el('div', { class: 'modal-box modal-gross', role: 'dialog', 'aria-modal': 'true', 'aria-label': titel },
       el('h2', { text: titel }),
       !aus
-        ? el('p', { class: 'leise', text: 'Verbrauchsmaterial: trage ein, was übrig ist. Leere Felder werden nicht gebucht.' })
+        ? el('p', {
+          class: 'leise',
+          text: 'Verbrauchsmaterial: trage ein, was übrig ist. Leere Felder werden nicht gebucht. ' +
+            'Neu gedruckt? Dann im Material über „Bearbeiten“ die Anzahl erhöhen.'
+        })
         : null,
       form
     )
@@ -169,8 +183,9 @@ export function zeigeBuchenDialog(opt) {
       if (opt.ctx.behandleFehler(e)) { zu(); return; }
       let text = e.message;
       if (e.code === 'zuwenig') {
-        text += ' Vielleicht hat jemand gerade gebucht. Die Liste wird aktualisiert.';
-        opt.neuLaden();
+        try { await opt.neuLaden(); } catch (x) { /* ignorieren */ }
+        aktualisieren();
+        text += ' Vielleicht hat jemand gerade gebucht. Die Mengen im Fenster sind jetzt aktuell.';
       }
       fehler.textContent = text;
       ok.disabled = false;
