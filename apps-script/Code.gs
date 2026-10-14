@@ -29,13 +29,14 @@ function verteile(p) {
   // Mit Login: Token, Gruppe und Zugang werden bei JEDEM Aufruf geprüft
   var ctx = tokenPruefen(p.token);
   switch (p.aktion) {
-    case 'bootstrap':   return aktionBootstrap(ctx, p);
-    case 'list':        return aktionList(ctx, p);
-    case 'create':      return aktionCreate(ctx, p);
-    case 'update':      return aktionUpdate(ctx, p);
-    case 'delete':      return aktionDelete(ctx, p);
-    case 'batchCreate': return aktionBatchCreate(ctx, p);
-    case 'buchen':      return aktionBuchen(ctx, p);
+    case 'bootstrap':    return aktionBootstrap(ctx, p);
+    case 'list':         return aktionList(ctx, p);
+    case 'create':       return aktionCreate(ctx, p);
+    case 'update':       return aktionUpdate(ctx, p);
+    case 'delete':       return aktionDelete(ctx, p);
+    case 'batchCreate':  return aktionBatchCreate(ctx, p);
+    case 'buchen':       return aktionBuchen(ctx, p);
+    case 'uploadImage':  return aktionUploadImage(ctx, p);
     default: fehler('ungueltig', 'Unbekannte Aktion.');
   }
 }
