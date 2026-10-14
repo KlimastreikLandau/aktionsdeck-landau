@@ -35,6 +35,7 @@ function verteile(p) {
     case 'update':      return aktionUpdate(ctx, p);
     case 'delete':      return aktionDelete(ctx, p);
     case 'batchCreate': return aktionBatchCreate(ctx, p);
+    case 'buchen':      return aktionBuchen(ctx, p);
     default: fehler('ungueltig', 'Unbekannte Aktion.');
   }
 }
