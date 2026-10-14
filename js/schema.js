@@ -29,6 +29,15 @@ export const SCHEMA = {
       { name: 'datum', label: 'Datum', typ: 'text' },
       { name: 'notiz', label: 'Notiz', typ: 'langtext' }
     ]
+  },
+  ToDos: {
+    titel: 'ToDos',
+    felder: [
+      { name: 'text', label: 'Was ist zu tun?', typ: 'langtext', pflicht: true },
+      { name: 'verantwortlich', label: 'Verantwortlich', typ: 'text' },
+      { name: 'faellig_am', label: 'Fällig am', typ: 'datum' },
+      { name: 'prioritaet', label: 'Priorität', typ: 'auswahl', optionen: ['hoch', 'normal', 'niedrig'] }
+    ]
   }
 };
 
