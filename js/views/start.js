@@ -6,9 +6,9 @@ import { gruppenLogo } from '../ui/logo.js';
 import { getName } from '../store.js';
 
 const KACHELN = [
-  { titel: 'Material', hinweis: 'Bestand und Ausleihe' },
-  { titel: 'ToDos', hinweis: 'Kommt mit Etappe 3' },
   { titel: 'Projekte', hinweis: 'Kommt mit Etappe 4' },
+  { titel: 'ToDos', hinweis: 'Kommt mit Etappe 3' },
+  { titel: 'Material', hinweis: 'Bestand und Ausleihe' },
   { titel: 'Posts', hinweis: 'Kommt mit Etappe 5' },
   { titel: 'Kalender', hinweis: 'Kommt mit Etappe 5' }
 ];
