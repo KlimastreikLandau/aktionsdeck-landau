@@ -3,27 +3,31 @@
 
 import { el, leeren } from '../ui/dom.js';
 import { gruppenLogo } from '../ui/logo.js';
-
-function infoLink() {
-  return el('p', { class: 'start-info' },
-    el('a', { href: '#/info', text: 'Info (Impressum, Datenschutz, Hilfe)' })
-  );
-}
+import { balken } from '../ui/kopf.js';
+import { OEFFENTLICH } from '../ui/nav.js';
 
 function farbeOk(f) {
   return /^#[0-9a-fA-F]{6}$/.test(String(f || '').trim());
 }
 
+// Der Strich in Gruppenfarbe ist die untere Kante der Kachel.
 function kachel(g) {
-  const strich = el('div', { class: 'kachel-strich', 'aria-hidden': 'true' });
-  if (farbeOk(g.farbe)) strich.style.background = String(g.farbe).trim();
-  return el('a', {
+  const a = el('a', {
     class: 'gruppen-kachel',
     href: '#/g/' + encodeURIComponent(g.kurzname) + '/start'
   },
     gruppenLogo(g.kurzname, 'gruppen-logo'),
-    el('span', { class: 'kachel-name', text: g.name }),
-    strich
+    el('span', { class: 'kachel-name', text: g.name })
+  );
+  if (farbeOk(g.farbe)) a.style.borderBottomColor = String(g.farbe).trim();
+  return a;
+}
+
+function infoKnoepfe() {
+  return el('nav', { class: 'start-knoepfe', 'aria-label': 'Rechtliches und Info' },
+    ...OEFFENTLICH.map(function (o) {
+      return el('a', { class: 'knopf knopf-hell', href: '#/info/' + o.id, text: o.label });
+    })
   );
 }
 
@@ -32,18 +36,10 @@ export async function render(container, ctx) {
   const raster = el('div', { class: 'gruppen-raster' });
   const meldung = el('div');
 
-  container.append(el('div', { class: 'start-seite' },
-    el('div', { class: 'start-kopf' },
-      el('img', { class: 'start-logo', src: 'icons/logo.svg', alt: '' }),
-      el('div', null,
-        el('h1', { text: 'AktionsDeck Landau' }),
-        el('p', { class: 'leise', text: 'Wähle deine Gruppe.' })
-      )
-    ),
-    raster,
-    meldung,
-    infoLink()
-  ));
+  container.append(
+    balken(),
+    el('div', { class: 'start-seite' }, raster, meldung, infoKnoepfe())
+  );
 
   function zeige(liste) {
     leeren(raster);
