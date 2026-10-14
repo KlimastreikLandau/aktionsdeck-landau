@@ -1,11 +1,11 @@
 // js/views/todos.js
-// Reiter ToDos: Liste mit Suche, Details, Anlegen, Ändern, Löschen.
+// Reiter ToDos: Liste mit Suche, Details, Anlegen, Ändern, Löschen und Abhaken.
 // Alle ToDos bleiben sichtbar. Erledigte stehen unten, grau und durchgestrichen.
-// Abhaken kommt in Schritt 3.2.
+// Abhaken wirkt sofort und wird ohne Konfliktprüfung gespeichert (ändert nur erledigt-Felder).
 
 import { el, leeren } from '../ui/dom.js';
 import { api } from '../api.js';
-import { ladeMitCache } from '../cache.js';
+import { ladeMitCache, cacheSet } from '../cache.js';
 import { zeigeListe } from '../ui/table.js';
 import { zeigeDetail, schliesseDetail } from '../ui/detail.js';
 import { baueFormular } from '../ui/form.js';
@@ -28,6 +28,12 @@ function prioText(p) {
 function kurz(text, max) {
   const t = String(text || '').replace(/\s+/g, ' ').trim();
   return t.length > max ? t.slice(0, max - 1) + '…' : t;
+}
+
+function heute() {
+  const d = new Date();
+  const zz = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + zz(d.getMonth() + 1) + '-' + zz(d.getDate());
 }
 
 // Offene zuerst, dann nach Fälligkeit (ohne Datum zuletzt), dann nach Erstelldatum
@@ -63,6 +69,8 @@ export async function render(container, ctx) {
   let daten = { todos: [] };
   let offenId = null;
   let formOffen = false;
+  let ausstehend = 0;      // Anzahl Abhak-Speicherungen, die gerade laufen
+  let letzterStand = '';   // Zeit der letzten frischen Ladung (für den Zwischenspeicher)
 
   const status = el('p', { class: 'leise', text: 'Lade Daten …' });
   const suche = el('input', {
@@ -95,6 +103,50 @@ export async function render(container, ctx) {
     return liste;
   }
 
+  function ersetzen(eintrag) {
+    const i = daten.todos.findIndex(function (x) { return String(x.id) === String(eintrag.id); });
+    if (i >= 0) daten.todos[i] = eintrag;
+  }
+
+  // ---- Abhaken: sofort anzeigen, im Hintergrund speichern, ohne "bekannt" ----
+
+  async function abhaken(t, wert) {
+    const aenderung = {
+      erledigt: wert,
+      erledigt_am: wert ? heute() : '',
+      erledigt_von: wert ? (getName() || 'unbekannt') : ''
+    };
+    const vorher = t;
+    ausstehend++;
+    ersetzen(Object.assign({}, t, aenderung));
+    zeichne();
+    if (offenId && !formOffen) detailZeigen(offenId, false);
+
+    try {
+      const r = await api('update', {
+        tabelle: 'ToDos', id: t.id, daten: aenderung
+      }, s.token);
+      ersetzen(r.eintrag);
+      if (letzterStand) {
+        cacheSet(s.gruppe_id + ':todos', { daten: daten, stand: letzterStand });
+      }
+    } catch (e) {
+      ersetzen(vorher);
+      if (ctx.behandleFehler(e)) { ausstehend--; return; }
+      toast(e.code === 'netz'
+        ? 'Keine Verbindung. Das Häkchen wurde nicht gespeichert.'
+        : 'Nicht gespeichert: ' + e.message);
+      ausstehend--;
+      zeichne();
+      if (offenId && !formOffen) detailZeigen(offenId, false);
+      laden(false);
+      return;
+    }
+    ausstehend--;
+    zeichne();
+    if (offenId && !formOffen) detailZeigen(offenId, false);
+  }
+
   // ---- Detail ----
 
   function detailZeigen(id, neu) {
@@ -107,6 +159,13 @@ export async function render(container, ctx) {
     }
     const fertig = istWahr(t.erledigt);
     const inhalt = el('div', null,
+      el('div', { class: 'detail-knoepfe' },
+        el('button', {
+          class: 'knopf', type: 'button',
+          text: fertig ? 'Wieder öffnen' : 'Als erledigt markieren',
+          onclick: function () { abhaken(t, !fertig); }
+        })
+      ),
       el('div', { class: 'detail-knoepfe' },
         el('button', {
           class: 'knopf knopf-hell', type: 'button', text: 'Bearbeiten',
@@ -188,7 +247,7 @@ export async function render(container, ctx) {
       if (ctx.behandleFehler(e)) return;
       if (e.code === 'konflikt') {
         laden(false);
-        throw new Error('Jemand anderes hat dieses ToDo gerade geändert. ' +
+        throw new Error('Jemand anderes hat dieses ToDo gerade geändert (oder abgehakt). ' +
           'Klicke auf „Abbrechen“ und öffne es noch einmal.');
       }
       throw e;
@@ -216,17 +275,6 @@ export async function render(container, ctx) {
   }
 
   // ---- Liste ----
-
-  // Erledigte Zeilen und Karten bekommen die Klasse "erledigt" (grau, durchgestrichen)
-  function erledigteMarkieren(zeilen) {
-    const reihen = box.querySelectorAll('tbody tr');
-    const karten = box.querySelectorAll('.karten-liste .karte');
-    zeilen.forEach(function (z, i) {
-      if (!istWahr(z.erledigt)) return;
-      if (reihen[i]) reihen[i].classList.add('erledigt');
-      if (karten[i]) karten[i].classList.add('erledigt');
-    });
-  }
 
   function zeichne() {
     const q = suche.value.trim().toLowerCase();
@@ -263,13 +311,24 @@ export async function render(container, ctx) {
         offenId = z.id;
         detailZeigen(z.id, true);
       },
-      leerText
+      leerText,
+      null,
+      {
+        klasse: function (z) { return istWahr(z.erledigt) ? 'erledigt' : ''; },
+        haken: {
+          gesetzt: function (z) { return istWahr(z.erledigt); },
+          umschalten: function (z, wert) { abhaken(z, wert); },
+          label: function (z) { return 'Erledigt: ' + kurz(z.text, 40); }
+        }
+      }
     );
-    erledigteMarkieren(zeilen);
   }
 
   function zeigen(neu, meta) {
+    // Während ein Häkchen noch gespeichert wird, nichts überschreiben
+    if (ausstehend > 0) return;
     daten = neu;
+    if (meta.aktuell) letzterStand = meta.stand;
     zeichne();
     // Ein offenes Formular wird bei der Aktualisierung nicht überschrieben.
     if (offenId && !formOffen) detailZeigen(offenId, false);
@@ -302,6 +361,6 @@ export async function render(container, ctx) {
   }
 
   suche.addEventListener('input', zeichne);
-  ctx.setzeRefresh(function () { return laden(false); });
+  ctx.setzeRefresh(function () { return ausstehend > 0 ? null : laden(false); });
   await laden(true);
 }
