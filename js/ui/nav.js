@@ -8,9 +8,9 @@ import { gruppenLogo } from './logo.js';
 
 export const TABS = [
   { id: 'start', label: 'Start', icon: '🏠' },
-  { id: 'material', label: 'Material', icon: '📦' },
-  { id: 'todos', label: 'ToDos', icon: '✅' },
   { id: 'projekte', label: 'Projekte', icon: '📁' },
+  { id: 'todos', label: 'ToDos', icon: '✅' },
+  { id: 'material', label: 'Material', icon: '📦' },
   { id: 'posts', label: 'Posts', icon: '📣' },
   { id: 'kalender', label: 'Kalender', icon: '📅' },
   { id: 'hilfe', label: 'Hilfe', icon: '❓' }
@@ -24,7 +24,7 @@ export const OEFFENTLICH = [
 ];
 
 const MEHR = { id: 'mehr', label: 'Mehr', icon: '⋯' };
-const UNTEN = ['start', 'material', 'todos', 'projekte'];
+const UNTEN = ['start', 'projekte', 'todos', 'material'];
 
 export function sichtbareTabs() {
   return TABS.filter(function (t) { return features[t.id] !== false; });
@@ -66,7 +66,7 @@ export function baueGeruest(container, ctx) {
   const seitenleiste = el('nav', { class: 'seitenleiste', 'aria-label': 'Hauptmenü' },
     el('div', { class: 'seiten-kopf' },
       gruppenLogo(ctx.session.kurzname, 'seiten-logo'),
-      el('span', { text: ctx.session.name })
+      el('span', { text: String(ctx.session.kurzname).toUpperCase() })
     ),
     ...tabs.map(function (t) { return eintrag('nav-link', basis, t, aktiv); }),
     el('div', { class: 'seiten-fuss' },
