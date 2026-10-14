@@ -50,6 +50,12 @@ function paare(liste) {
   return dl;
 }
 
+function artText(a) {
+  if (a === 'mitgenommen') return 'mitgenommen';
+  if (a === 'defekt') return 'defekt';
+  return 'zurück';
+}
+
 function verlaufListe(verlauf) {
   if (!verlauf.length) {
     return el('p', { class: 'leise', text: 'Noch nichts ausgeliehen.' });
@@ -59,10 +65,9 @@ function verlaufListe(verlauf) {
   }).slice(0, 10);
   const ul = el('ul', { class: 'verlauf' });
   sortiert.forEach(function (a) {
-    const art = a.art === 'mitgenommen' ? 'mitgenommen' : 'zurück';
     const text = [
       datumText(a.datum || a.erstellt_am),
-      art,
+      artText(a.art),
       a.anzahl,
       a.person
     ].filter(function (x) { return x !== '' && x !== undefined; }).join(' · ');
@@ -71,19 +76,23 @@ function verlaufListe(verlauf) {
   return ul;
 }
 
-// m = Material (mit _verfuegbar), verlauf = Ausleihe-Zeilen dieses Materials
+// m = Material aus mitVerfuegbar (mit _verfuegbar, _draussen, _verbrauch)
+// verlauf = Ausleihe-Zeilen dieses Materials
 export function baueDetail(m, verlauf) {
   const einheit = m.einheit ? ' ' + m.einheit : '';
   const kat = [m.kategorie, m.unterkategorie].filter(Boolean).join(' › ');
-  const box = el('div', null,
-    foto(m),
-    paare([
-      ['Kategorie', kat],
-      ['Ort', m.ort],
-      ['Anzahl', m.anzahl === '' ? '' : m.anzahl + einheit],
-      ['Verfügbar', m._verfuegbar === '' ? '' : m._verfuegbar + einheit]
-    ])
-  );
+  const hat = m.anzahl !== '' && m.anzahl !== undefined && m.anzahl !== null;
+  const zeilen = [
+    ['Art', m._verbrauch ? 'Verbrauchsmaterial' : 'Festes Material'],
+    ['Kategorie', kat],
+    ['Ort', m.ort],
+    [m._verbrauch ? 'Vorrat' : 'Bestand', hat ? m.anzahl + einheit : '']
+  ];
+  if (!m._verbrauch) {
+    zeilen.push(['Verfügbar', m._verfuegbar === '' ? '' : m._verfuegbar + einheit]);
+    zeilen.push(['Gerade ausgeliehen', m._draussen + einheit]);
+  }
+  const box = el('div', null, foto(m), paare(zeilen));
   if (m.notiz) {
     box.append(el('h3', { text: 'Notiz' }), el('p', { class: 'notiz', text: String(m.notiz) }));
   }
