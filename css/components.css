@@ -805,3 +805,61 @@ p.notiz.erledigt {
   text-decoration: line-through;
   background: #f6f8f7;
 }
+
+/* ---- Etappe 3.5: ToDos Archiv, Start-Kachel ---- */
+
+/* Abgehakte Kästchen in Grau */
+.tabelle tr.erledigt .auswahl-box,
+.karte.erledigt .auswahl-box,
+.dash-zeile.erledigt .auswahl-box { accent-color: #8a9490; }
+
+.kopf-knoepfe { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Eigene Tabelle "Erledigt": graue Kopfzeile */
+.liste-titel { margin: 28px 0 8px; font-size: 18px; color: var(--text-leise); }
+.liste-erledigt .tabelle th { background: #5f6a66; color: #fff; }
+
+/* Start-Kachel ToDos: halbe Breite am PC, Kopfzeile mit Link und Schalter */
+.dash-todos { grid-column: auto; }
+
+@media (min-width: 960px) {
+  .dash-raster { grid-template-columns: repeat(2, 1fr); }
+}
+
+.dash-kachel-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-bottom: 8px;
+}
+
+.dash-kachel-titel {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.dash-kachel-kopf h2 { margin: 0; }
+
+.dash-kachel-titel a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 600;
+}
+
+.dash-kachel-kopf .formfeld-bool { font-size: 14px; }
+
+/* ToDo-Zeile mit Kästchen */
+.dash-zeile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--rand);
+}
+
+.dash-zeile .auswahl-box { flex: none; margin: 0 0 0 2px; }
+.dash-zeile .dash-todo { flex: 1; min-width: 0; border-bottom: 0; }
