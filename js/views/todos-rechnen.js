@@ -1,6 +1,6 @@
 // js/views/todos-rechnen.js
-// Rechenhelfer für ToDos: Datum, Fälligkeit, Sortierung, Filter.
-// Wird vom Reiter ToDos benutzt und später auch vom Start-Dashboard (3.4) und von den Projekten (4.3).
+// Rechenhelfer für ToDos: Datum, Fälligkeit, Sortierung, Filter, Archiv, Zahlen.
+// Wird vom Reiter ToDos, vom Start-Dashboard und später von den Projekten (4.3) benutzt.
 
 import { istWahr } from '../schema.js';
 
@@ -87,10 +87,57 @@ export function sortieren(liste) {
   });
 }
 
+// ---- Erledigt und Archiv ----
+
+// Datum, an dem das ToDo erledigt wurde (sonst Änderungsdatum), JJJJ-MM-TT oder ''
+export function erledigtDatum(t) {
+  const s = String(t.erledigt_am || t.geaendert_am || '').slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+}
+
+// Alles, was davor erledigt wurde, gehört ins Archiv (14 Tage)
+export function archivGrenze() {
+  const d = new Date();
+  d.setDate(d.getDate() - 14);
+  return iso(d);
+}
+
+export function istArchiv(t) {
+  if (!istWahr(t.erledigt)) return false;
+  const d = erledigtDatum(t);
+  return !!d && d < archivGrenze();
+}
+
+// Zuletzt erledigte zuerst
+export function sortiereErledigte(liste) {
+  return liste.slice().sort(function (a, b) {
+    const da = erledigtDatum(a);
+    const db = erledigtDatum(b);
+    if (da !== db) return da < db ? 1 : -1;
+    return String(b.geaendert_am || '').localeCompare(String(a.geaendert_am || ''));
+  });
+}
+
+// ---- Zuordnung und Zahlen ----
+
+// Allgemeines ToDo = gehört zu keinem Projekt und keinem Post
+export function istAllgemein(t) {
+  return !String(t.projekt_id || '').trim() && !String(t.post_id || '').trim();
+}
+
 export function istMeins(t, name) {
   const n = String(name || '').trim().toLowerCase();
   if (!n) return false;
   return String(t.verantwortlich || '').toLowerCase().indexOf(n) >= 0;
+}
+
+// "3 offen · 1 überfällig · 1 heute fällig · 3 für dich" (zählt nur offene)
+export function zahlenText(liste, name) {
+  const offen = liste.filter(function (t) { return !istWahr(t.erledigt); });
+  const ueber = offen.filter(function (t) { return faelligStatus(t) === 'ueberfaellig'; }).length;
+  const heute = offen.filter(function (t) { return faelligStatus(t) === 'heute'; }).length;
+  const meine = offen.filter(function (t) { return istMeins(t, name); }).length;
+  return offen.length + ' offen · ' + ueber + ' überfällig · ' + heute + ' heute fällig · ' + meine + ' für dich';
 }
 
 // f: { q, wer ('' | '__leer' | Name), faellig ('' | ueberfaellig | heute | woche | ohne),
@@ -100,7 +147,7 @@ export function treffer(t, f) {
   const d = datumVon(t);
 
   if (f.q) {
-    const heu = [t.text, t.verantwortlich, prioText(t.prioritaet), datumText(t.faellig_am)]
+    const heu = [t.text, t.details, t.verantwortlich, prioText(t.prioritaet), datumText(t.faellig_am)]
       .join(' ').toLowerCase();
     if (heu.indexOf(f.q) < 0) return false;
   }
