@@ -7,9 +7,24 @@ import { istWahr } from '../schema.js';
 const PRIO_TEXT = { hoch: 'Hoch', normal: 'Normal', niedrig: 'Niedrig' };
 const PRIO_RANG = { hoch: 0, normal: 1, niedrig: 2 };
 
+// Liest ein Datum in den Formaten 2026-09-03, 03.09.2026 und 03.09.26.
+// Gibt JJJJ-MM-TT zurück, oder '' wenn es nicht lesbar ist.
+export function normDatum(s) {
+  const t = String(s === undefined || s === null ? '' : s).trim();
+  let m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return m[1] + '-' + m[2] + '-' + m[3];
+  m = t.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})/);
+  if (m) {
+    const zz = function (n) { return (n.length < 2 ? '0' : '') + n; };
+    const jahr = m[3].length === 2 ? '20' + m[3] : m[3];
+    return jahr + '-' + zz(m[2]) + '-' + zz(m[1]);
+  }
+  return '';
+}
+
 export function datumText(s) {
-  const t = String(s || '').slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t.split('-').reverse().join('.') : String(s || '');
+  const d = normDatum(s);
+  return d ? d.split('-').reverse().join('.') : String(s || '');
 }
 
 export function prioText(p) {
@@ -40,8 +55,7 @@ export function wochenEnde() {
 }
 
 export function datumVon(t) {
-  const s = String(t.faellig_am || '').slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+  return normDatum(t.faellig_am);
 }
 
 // '' | 'ueberfaellig' | 'heute' (nur für offene ToDos)
@@ -89,10 +103,9 @@ export function sortieren(liste) {
 
 // ---- Erledigt und Archiv ----
 
-// Datum, an dem das ToDo erledigt wurde (sonst Änderungsdatum), JJJJ-MM-TT oder ''
+// Datum, an dem das ToDo erledigt wurde. Ist es nicht lesbar: Änderungsdatum. JJJJ-MM-TT oder ''
 export function erledigtDatum(t) {
-  const s = String(t.erledigt_am || t.geaendert_am || '').slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+  return normDatum(t.erledigt_am) || normDatum(t.geaendert_am);
 }
 
 // Alles, was davor erledigt wurde, gehört ins Archiv (14 Tage)
