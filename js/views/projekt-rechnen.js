@@ -1,8 +1,9 @@
 // js/views/projekt-rechnen.js
-// Rechenhelfer für Projekte: Status, Fortschritt (aus den ToDos), Sortierung, Terminzeile.
+// Rechenhelfer für Projekte: Status, Fortschritt (aus den ToDos), Sortierung, Terminzeile,
+// Meilensteine (Stand, Sortierung, Fälligkeit).
 
 import { istWahr } from '../schema.js';
-import { normDatum, datumText } from './todos-rechnen.js';
+import { normDatum, datumText, heuteIso } from './todos-rechnen.js';
 
 const STATUS_TEXT = {
   planung: 'Planung',
@@ -63,4 +64,48 @@ export function terminText(p) {
     p.aktionsdatum ? 'Aktion ' + datumText(p.aktionsdatum) : '',
     p.ort
   ].filter(Boolean).join(' · ');
+}
+
+// ---- Meilensteine ----
+
+// Stand eines Meilensteins aus seinen ToDos (todos = ToDos des Projekts).
+// Mit ToDos: erreicht, wenn alle erledigt sind. Ohne ToDos: gilt das Häkchen "erledigt".
+export function meilensteinStand(m, todos) {
+  const id = String(m.id);
+  const liste = (todos || []).filter(function (t) {
+    return String(t.meilenstein_id || '').trim() === id;
+  });
+  const erledigt = liste.filter(function (t) { return istWahr(t.erledigt); }).length;
+  const gesamt = liste.length;
+  return {
+    gesamt: gesamt,
+    erledigt: erledigt,
+    offen: gesamt - erledigt,
+    prozent: gesamt ? Math.round(erledigt * 100 / gesamt) : 0,
+    erreicht: gesamt ? erledigt === gesamt : istWahr(m.erledigt)
+  };
+}
+
+// Nach Datum (ohne Datum zuletzt), dann nach Titel
+export function sortiereMeilensteine(liste) {
+  return liste.slice().sort(function (a, b) {
+    const da = normDatum(a.datum);
+    const db = normDatum(b.datum);
+    if (da !== db) {
+      if (!da) return 1;
+      if (!db) return -1;
+      return da < db ? -1 : 1;
+    }
+    return String(a.titel).localeCompare(String(b.titel), 'de');
+  });
+}
+
+// '' | 'ueberfaellig' | 'heute' (nur nach Datum; ob erreicht, prüft der Aufrufer)
+export function meilensteinFaellig(m) {
+  const d = normDatum(m.datum);
+  if (!d) return '';
+  const h = heuteIso();
+  if (d < h) return 'ueberfaellig';
+  if (d === h) return 'heute';
+  return '';
 }
