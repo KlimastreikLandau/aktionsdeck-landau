@@ -2,7 +2,7 @@
 // Lädt die App-Hülle vor. Dateien der App: zuerst Netz, sonst Zwischenspeicher.
 // Daten der API liegen nicht hier, sondern in IndexedDB (js/cache.js).
 
-const VERSION = '0.19.0';
+const VERSION = '0.20.0';
 const CACHE = 'aktionsdeck-' + VERSION;
 
 const HUELLE = [
@@ -48,6 +48,7 @@ const HUELLE = [
   'js/views/todos-abhaken.js',
   'js/views/projekte.js',
   'js/views/projekt-rechnen.js',
+  'js/views/projekt-todos.js',
   'icons/icon.svg',
   'icons/logo.svg'
 ];
