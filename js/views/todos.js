@@ -2,6 +2,7 @@
 // Reiter ToDos: oben die offenen ToDos, darunter eine eigene Tabelle "Erledigt" (letzte 2 Wochen).
 // Der Knopf "Archiv" zeigt die ToDos, die vor mehr als 2 Wochen erledigt wurden.
 // Abhaken wird ohne Konfliktprüfung gespeichert. Bearbeiten im Formular prüft auf Konflikte.
+// Eine Spalte "Projekt" zeigt, zu welchem Projekt ein ToDo gehört.
 
 import { el, leeren } from '../ui/dom.js';
 import { api } from '../api.js';
@@ -19,8 +20,17 @@ import {
   zahlenText, istArchiv, sortiereErledigte
 } from './todos-rechnen.js';
 
+// Projekt-Titel nach ID (wird beim Laden gefüllt)
+let projektTitel = {};
+
+function projektName(t) {
+  const id = String(t.projekt_id || '').trim();
+  return id ? (projektTitel[id] || '') : '';
+}
+
 const SPALTEN = [
   { name: 'text', label: 'Titel', wert: function (z) { return kurz(z.text, 90); } },
+  { name: '_projekt', label: 'Projekt', wert: function (z) { return projektName(z); } },
   { name: 'verantwortlich', label: 'Verantwortlich' },
   { name: 'faellig_am', label: 'Fällig', wert: function (z) { return faelligText(z); } },
   { name: 'prioritaet', label: 'Priorität', wert: function (z) { return prioText(z.prioritaet); } },
@@ -29,9 +39,11 @@ const SPALTEN = [
 
 function karteVon(z) {
   const fertig = istWahr(z.erledigt);
+  const pn = projektName(z);
   return {
     titel: kurz(z.text, 120),
     zeilen: [
+      pn ? 'Projekt: ' + pn : '',
       [z.verantwortlich,
         z.faellig_am ? 'Fällig ' + faelligText(z) : '',
         prioText(z.prioritaet)].filter(Boolean).join(' · '),
@@ -53,7 +65,7 @@ export async function render(container, ctx) {
   const s = ctx.session;
   leeren(container);
 
-  let daten = { todos: [] };
+  let daten = { todos: [], projekte: [] };
   let offenId = null;
   let formOffen = false;
   let formTodo = null;      // das ToDo, wie es beim Öffnen des Formulars war (null = neu)
@@ -238,6 +250,7 @@ export async function render(container, ctx) {
       t.details ? el('h3', { text: 'Weitere Informationen' }) : null,
       t.details ? el('p', { class: klasse, text: String(t.details) }) : null,
       paare([
+        ['Projekt', projektName(t)],
         ['Status', fertig ? 'Erledigt' : 'Offen'],
         ['Verantwortlich', t.verantwortlich],
         ['Fällig am', faelligText(t)],
@@ -436,9 +449,13 @@ export async function render(container, ctx) {
   }
 
   function zeigen(neu, m) {
+    // Ältere Zwischenspeicher (z. B. von der Start-Kachel) kennen die Projekte nicht
+    if (!neu.projekte) neu.projekte = daten.projekte || [];
     daten = neu;
     meta = m;
     offline = false;
+    projektTitel = {};
+    daten.projekte.forEach(function (p) { projektTitel[String(p.id)] = String(p.titel); });
     werAufbauen();
     zeichne();
     // Ein offenes Formular wird bei der Aktualisierung nie überschrieben.
@@ -451,8 +468,9 @@ export async function render(container, ctx) {
       const ok = await ladeMitCache(
         s.gruppe_id + ':todos',
         async function () {
-          const r = await api('list', { tabelle: 'ToDos' }, s.token);
-          return { todos: r.zeilen };
+          const r = await api('listMehrere', { tabellen: ['ToDos', 'Projekte'] }, s.token);
+          const t = (r && r.tabellen) || {};
+          return { todos: t.ToDos || [], projekte: t.Projekte || [] };
         },
         zeigen,
         zuerstCache
