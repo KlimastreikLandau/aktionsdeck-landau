@@ -774,3 +774,34 @@ p.notiz.erledigt {
 
 .karte.ueberfaellig { border-left: 6px solid #b3261e; }
 .karte.heute { border-left: 6px solid #c77c00; background: #fff7e8; }
+
+/* ---- Etappe 3.4: Start-Kachel ToDos ---- */
+
+.dash-todos { grid-column: 1 / -1; }
+
+.dash-zahlen { font-weight: 600; margin: 0 0 8px; }
+
+.dash-todo-liste { list-style: none; padding: 0; margin: 8px 0; }
+
+.dash-todo {
+  display: grid;
+  gap: 2px;
+  min-height: 44px;
+  padding: 8px 0 8px 10px;
+  border-bottom: 1px solid var(--rand);
+  border-left: 6px solid transparent;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.dash-todo:hover { background: var(--gruen-hell); }
+
+.dash-todo.ueberfaellig { border-left-color: #b3261e; }
+.dash-todo.heute { border-left-color: #c77c00; background: #fff7e8; }
+
+.dash-todo.erledigt,
+.dash-todo.erledigt span {
+  color: var(--text-leise);
+  text-decoration: line-through;
+  background: #f6f8f7;
+}
