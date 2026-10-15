@@ -997,3 +997,126 @@ p.notiz.erledigt {
 .dash-projekt:last-of-type { border-bottom: 0; }
 .dash-projekt:hover { background: var(--gruen-hell); }
 .dash-projekt:focus-visible { outline: 2px solid var(--gruppe); }
+
+/* ---- Etappe 4.2: ToDos und Meilensteine im Projekt ---- */
+
+/* Teil (aufklappbar) im Projektblock */
+.projekt-teil {
+  margin: 12px 0;
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  background: var(--flaeche);
+}
+
+.projekt-teil > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-height: 44px;
+  padding: 8px 12px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.projekt-teil > summary::-webkit-details-marker { display: none; }
+.projekt-teil > summary:focus-visible { outline: 2px solid var(--gruppe); }
+
+.teil-pfeil {
+  display: inline-block;
+  color: var(--text-leise);
+  transition: transform 0.15s ease;
+}
+
+.projekt-teil[open] > summary .teil-pfeil { transform: rotate(90deg); }
+
+.projekt-teil-body {
+  padding: 8px 12px 12px;
+  border-top: 1px solid var(--rand);
+}
+
+.teil-aktionen {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.teil-titel-klein {
+  margin: 16px 0 4px;
+  font-size: 16px;
+  color: var(--text-leise);
+}
+
+/* Meilenstein */
+.meilenstein {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--rand);
+  border-left: 6px solid var(--gruppe);
+  border-radius: var(--radius);
+}
+
+.meilenstein.erreicht { background: #f6f8f7; border-left-color: #8a9490; }
+.meilenstein.ueberfaellig { border-left-color: #b3261e; }
+.meilenstein.heute { border-left-color: #c77c00; }
+
+.meilenstein-kopf {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-bottom: 6px;
+}
+
+.meilenstein-titel {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-width: 160px;
+}
+
+.meilenstein .auswahl-box { flex: none; }
+.meilenstein.erreicht .meilenstein-titel strong { color: var(--text-leise); }
+.meilenstein.ueberfaellig .meilenstein-titel .leise { color: #b3261e; font-weight: 600; }
+
+/* ToDo-Zeile im Projekt: Text ist ein Knopf (öffnet das Bearbeiten-Fenster) */
+.pt-todo {
+  width: auto;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pt-todo:focus-visible { outline: 2px solid var(--gruppe); }
+
+/* Löschen-Knopf unten im Bearbeiten-Fenster */
+.fenster-loeschen {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rand);
+}
+
+/* Start-Kachel Projekte: Schalter "ToDos (n offen)" */
+.dash-projekt-knopf { margin: 8px 0 4px; }
+
+.dash-projekt-block { border-bottom: 1px solid var(--rand); }
+.dash-projekt-block:last-of-type { border-bottom: 0; }
+.dash-projekt-block .dash-projekt { border-bottom: 0; }
+
+.dash-projekt-todos > summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 8px;
+  color: var(--text-leise);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dash-projekt-todos > summary:focus-visible { outline: 2px solid var(--gruppe); }
+.dash-projekt-todos .dash-todo-liste { margin: 0 0 8px; }
