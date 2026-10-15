@@ -2,6 +2,7 @@
 // Reiter ToDos: Liste mit Suche und Filtern, Abhaken, Details, Anlegen, Ändern, Löschen.
 // Alle ToDos bleiben sichtbar. Erledigte stehen unten, grau und durchgestrichen.
 // Abhaken wird ohne Konfliktprüfung gespeichert (ändert nur erledigt, erledigt_am, erledigt_von).
+// Bearbeiten im Formular prüft auf Konflikte (bekannt = geaendert_am).
 
 import { el, leeren } from '../ui/dom.js';
 import { api } from '../api.js';
@@ -33,6 +34,8 @@ export async function render(container, ctx) {
   let daten = { todos: [] };
   let offenId = null;
   let formOffen = false;
+  let formTodo = null;      // das ToDo, wie es beim Öffnen des Formulars war (null = neu)
+  let formHinweis = false;  // Warnung wegen fremder Änderung schon gezeigt?
   let meta = null;
   let offline = false;
   let gezeigt = 0;
@@ -72,6 +75,12 @@ export async function render(container, ctx) {
   ));
 
   // ---- Hilfen ----
+
+  function formEnde() {
+    formOffen = false;
+    formTodo = null;
+    formHinweis = false;
+  }
 
   function werteVonVerantwortlich() {
     const liste = [];
@@ -139,6 +148,10 @@ export async function render(container, ctx) {
       const r = await api('update', { tabelle: 'ToDos', id: t.id, daten: neu }, s.token);
       const i = daten.todos.findIndex(function (x) { return String(x.id) === id; });
       if (i >= 0 && r && r.eintrag) daten.todos[i] = r.eintrag;
+      // Mein eigenes Abhaken soll das offene Formular desselben ToDos nicht zum Konflikt machen
+      if (formTodo && String(formTodo.id) === id && !formHinweis && r && r.eintrag) {
+        formTodo.geaendert_am = r.eintrag.geaendert_am;
+      }
       cacheSet(s.gruppe_id + ':todos', { daten: daten, stand: new Date().toISOString() });
     } catch (e) {
       Object.assign(t, alt);
@@ -207,24 +220,26 @@ export async function render(container, ctx) {
 
   function formZeigen(t) {
     formOffen = true;
+    formTodo = t ? Object.assign({}, t) : null;
+    formHinweis = false;
     const neuAnlegen = !t;
     const form = baueFormular(SCHEMA.ToDos.felder, t || { prioritaet: 'normal' }, {
       speichernText: neuAnlegen ? 'Anlegen' : 'Speichern',
       vorschlaege: { verantwortlich: verantwortlicheVorschlaege() },
-      onSpeichern: function (d) { return speichern(t, d); },
+      onSpeichern: function (d) { return speichern(formTodo, d); },
       onAbbrechen: function () { formSchliessen(t); }
     });
     zeigeDetail(
       ctx.detail,
       neuAnlegen ? 'Neues ToDo' : 'ToDo bearbeiten',
       form,
-      function () { formOffen = false; offenId = null; },
+      function () { formEnde(); offenId = null; },
       true
     );
   }
 
   function formSchliessen(t) {
-    formOffen = false;
+    formEnde();
     if (t) {
       offenId = t.id;
       detailZeigen(t.id, true);
@@ -238,7 +253,7 @@ export async function render(container, ctx) {
     try {
       if (!t) {
         const o = await api('create', { tabelle: 'ToDos', daten: d }, s.token);
-        formOffen = false;
+        formEnde();
         offenId = o.id;
         toast('ToDo angelegt.');
         await laden(false);
@@ -248,7 +263,7 @@ export async function render(container, ctx) {
       const r = await api('update', {
         tabelle: 'ToDos', id: t.id, daten: d, bekannt: t.geaendert_am
       }, s.token);
-      formOffen = false;
+      formEnde();
       offenId = t.id;
       toast(r.geaendert ? 'Änderung gespeichert.' : 'Nichts geändert.');
       await laden(false);
@@ -259,6 +274,10 @@ export async function render(container, ctx) {
         laden(false);
         throw new Error('Jemand anderes hat dieses ToDo gerade geändert. ' +
           'Klicke auf „Abbrechen“ und öffne es noch einmal.');
+      }
+      if (e.code === 'nicht_gefunden') {
+        laden(false);
+        throw new Error('Dieses ToDo gibt es nicht mehr. Klicke auf „Abbrechen“.');
       }
       throw e;
     }
@@ -337,7 +356,7 @@ export async function render(container, ctx) {
         };
       },
       function (z) {
-        formOffen = false;
+        formEnde();
         offenId = z.id;
         detailZeigen(z.id, true);
       },
@@ -352,14 +371,28 @@ export async function render(container, ctx) {
     statusZeigen();
   }
 
+  // Bei offenem Formular: Hat jemand anderes dieses ToDo geändert oder gelöscht? Einmal warnen.
+  function formPruefen() {
+    if (!formOffen || !formTodo || formHinweis) return;
+    const aktuell = daten.todos.find(function (x) { return String(x.id) === String(formTodo.id); });
+    if (!aktuell) {
+      formHinweis = true;
+      toast('Dieses ToDo wurde inzwischen gelöscht. Bitte „Abbrechen“ wählen.');
+    } else if (String(aktuell.geaendert_am) !== String(formTodo.geaendert_am)) {
+      formHinweis = true;
+      toast('Jemand anderes hat dieses ToDo geändert. Bitte „Abbrechen“ wählen und neu öffnen.');
+    }
+  }
+
   function zeigen(neu, m) {
     daten = neu;
     meta = m;
     offline = false;
     werAufbauen();
     zeichne();
-    // Ein offenes Formular wird bei der Aktualisierung nicht überschrieben.
+    // Ein offenes Formular wird bei der Aktualisierung nie überschrieben.
     if (offenId && !formOffen) detailZeigen(offenId, false);
+    formPruefen();
   }
 
   async function laden(zuerstCache) {
@@ -389,6 +422,10 @@ export async function render(container, ctx) {
   faellig.addEventListener('change', zeichne);
   prio.addEventListener('change', zeichne);
   meine.addEventListener('change', zeichne);
-  ctx.setzeRefresh(function () { return laden(false); });
+  // Während ein Häkchen noch gespeichert wird, wird nicht aktualisiert
+  ctx.setzeRefresh(function () {
+    if (Object.keys(arbeitet).length) return Promise.resolve();
+    return laden(false);
+  });
   await laden(true);
 }
