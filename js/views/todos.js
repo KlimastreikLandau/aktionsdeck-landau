@@ -1,8 +1,7 @@
 // js/views/todos.js
-// Reiter ToDos: Liste mit Suche und Filtern, Abhaken, Details, Anlegen, Ändern, Löschen.
-// Alle ToDos bleiben sichtbar. Erledigte stehen unten, grau und durchgestrichen.
-// Abhaken wird ohne Konfliktprüfung gespeichert (ändert nur erledigt, erledigt_am, erledigt_von).
-// Bearbeiten im Formular prüft auf Konflikte (bekannt = geaendert_am).
+// Reiter ToDos: oben die offenen ToDos, darunter eine eigene Tabelle "Erledigt" (letzte 2 Wochen).
+// Der Knopf "Archiv" zeigt die ToDos, die vor mehr als 2 Wochen erledigt wurden.
+// Abhaken wird ohne Konfliktprüfung gespeichert. Bearbeiten im Formular prüft auf Konflikte.
 
 import { el, leeren } from '../ui/dom.js';
 import { api } from '../api.js';
@@ -14,9 +13,32 @@ import { toast } from '../ui/toast.js';
 import { getName } from '../store.js';
 import { SCHEMA, istWahr } from '../schema.js';
 import { zeitText } from './material-rechnen.js';
+import { abhakWerte, abhakenSpeichern } from './todos-abhaken.js';
 import {
-  datumText, prioText, kurz, heuteIso, faelligStatus, faelligText, sortieren, treffer
+  datumText, prioText, kurz, faelligStatus, faelligText, sortieren, treffer,
+  zahlenText, istArchiv, sortiereErledigte
 } from './todos-rechnen.js';
+
+const SPALTEN = [
+  { name: 'text', label: 'Titel', wert: function (z) { return kurz(z.text, 90); } },
+  { name: 'verantwortlich', label: 'Verantwortlich' },
+  { name: 'faellig_am', label: 'Fällig', wert: function (z) { return faelligText(z); } },
+  { name: 'prioritaet', label: 'Priorität', wert: function (z) { return prioText(z.prioritaet); } },
+  { name: '_status', label: 'Status', wert: function (z) { return istWahr(z.erledigt) ? 'Erledigt' : 'Offen'; } }
+];
+
+function karteVon(z) {
+  const fertig = istWahr(z.erledigt);
+  return {
+    titel: kurz(z.text, 120),
+    zeilen: [
+      [z.verantwortlich,
+        z.faellig_am ? 'Fällig ' + faelligText(z) : '',
+        prioText(z.prioritaet)].filter(Boolean).join(' · '),
+      fertig ? 'Erledigt' + (z.erledigt_von ? ' von ' + z.erledigt_von : '') : ''
+    ]
+  };
+}
 
 function paare(liste) {
   const dl = el('dl', { class: 'detail-liste' });
@@ -36,11 +58,13 @@ export async function render(container, ctx) {
   let formOffen = false;
   let formTodo = null;      // das ToDo, wie es beim Öffnen des Formulars war (null = neu)
   let formHinweis = false;  // Warnung wegen fremder Änderung schon gezeigt?
+  let archivModus = false;
   let meta = null;
   let offline = false;
-  let gezeigt = 0;
+  let zaehlText = '';
   const arbeitet = {};
 
+  const zahlen = el('p', { class: 'dash-zahlen' });
   const status = el('p', { class: 'leise', text: 'Lade Daten …' });
   const suche = el('input', {
     class: 'feld suche-feld', type: 'search', placeholder: 'Suchen …', 'aria-label': 'Suchen'
@@ -61,17 +85,31 @@ export async function render(container, ctx) {
   );
   const meine = el('input', { type: 'checkbox' });
   const meineFeld = el('label', { class: 'formfeld-bool' }, meine, el('span', { text: 'Nur meine' }));
-  const box = el('div');
+
+  const boxOffen = el('div');
+  const kopfErledigt = el('h2', { class: 'liste-titel' });
+  const boxErledigt = el('div', { class: 'liste-erledigt' });
+
   const neuKnopf = el('button', {
     class: 'knopf', type: 'button', text: '+ Neu',
     onclick: function () { offenId = null; formZeigen(null); }
   });
+  const archivKnopf = el('button', {
+    class: 'knopf knopf-hell', type: 'button', text: 'Archiv',
+    onclick: function () { archivModus = !archivModus; zeichne(); }
+  });
 
   container.append(el('div', { class: 'seite' },
-    el('div', { class: 'kopfzeile' }, el('h1', { text: 'ToDos' }), neuKnopf),
+    el('div', { class: 'kopfzeile' },
+      el('h1', { text: 'ToDos' }),
+      el('div', { class: 'kopf-knoepfe' }, archivKnopf, neuKnopf)
+    ),
+    zahlen,
     el('div', { class: 'filterzeile filter-todos' }, suche, wer, faellig, prio, meineFeld),
     status,
-    box
+    boxOffen,
+    kopfErledigt,
+    boxErledigt
   ));
 
   // ---- Hilfen ----
@@ -119,11 +157,9 @@ export async function render(container, ctx) {
       status.textContent = 'Keine Verbindung. Du siehst den letzten Stand.';
       return;
     }
-    const gesamt = daten.todos.length;
-    const n = gezeigt === gesamt ? gesamt + ' Einträge' : gezeigt + ' von ' + gesamt + ' Einträgen';
     status.className = 'leise';
     status.textContent = meta.aktuell
-      ? n + ' · Stand ' + zeitText(meta.stand)
+      ? zaehlText + ' · Stand ' + zeitText(meta.stand)
       : 'Zwischengespeichert von ' + zeitText(meta.stand) + '. Aktualisiere …';
   }
 
@@ -135,9 +171,7 @@ export async function render(container, ctx) {
     arbeitet[id] = true;
 
     const alt = { erledigt: t.erledigt, erledigt_am: t.erledigt_am, erledigt_von: t.erledigt_von };
-    const neu = wert
-      ? { erledigt: true, erledigt_am: heuteIso(), erledigt_von: getName() || 'unbekannt' }
-      : { erledigt: false, erledigt_am: '', erledigt_von: '' };
+    const neu = abhakWerte(wert);
 
     Object.assign(t, neu);
     zeichne();
@@ -145,12 +179,12 @@ export async function render(container, ctx) {
 
     let laden_noetig = false;
     try {
-      const r = await api('update', { tabelle: 'ToDos', id: t.id, daten: neu }, s.token);
+      const eintrag = await abhakenSpeichern(s.token, t.id, neu);
       const i = daten.todos.findIndex(function (x) { return String(x.id) === id; });
-      if (i >= 0 && r && r.eintrag) daten.todos[i] = r.eintrag;
+      if (i >= 0 && eintrag) daten.todos[i] = eintrag;
       // Mein eigenes Abhaken soll das offene Formular desselben ToDos nicht zum Konflikt machen
-      if (formTodo && String(formTodo.id) === id && !formHinweis && r && r.eintrag) {
-        formTodo.geaendert_am = r.eintrag.geaendert_am;
+      if (formTodo && String(formTodo.id) === id && !formHinweis && eintrag) {
+        formTodo.geaendert_am = eintrag.geaendert_am;
       }
       cacheSet(s.gruppe_id + ':todos', { daten: daten, stand: new Date().toISOString() });
     } catch (e) {
@@ -181,6 +215,7 @@ export async function render(container, ctx) {
       return;
     }
     const fertig = istWahr(t.erledigt);
+    const klasse = 'notiz' + (fertig ? ' erledigt' : '');
     const inhalt = el('div', null,
       el('div', { class: 'detail-knoepfe' },
         el('button', {
@@ -199,7 +234,9 @@ export async function render(container, ctx) {
           onclick: function () { loeschen(t); }
         })
       ),
-      el('p', { class: 'notiz' + (fertig ? ' erledigt' : ''), text: String(t.text) }),
+      el('p', { class: klasse, text: String(t.text) }),
+      t.details ? el('h3', { text: 'Weitere Informationen' }) : null,
+      t.details ? el('p', { class: klasse, text: String(t.details) }) : null,
       paare([
         ['Status', fertig ? 'Erledigt' : 'Offen'],
         ['Verantwortlich', t.verantwortlich],
@@ -306,9 +343,9 @@ export async function render(container, ctx) {
   // ---- Liste ----
 
   // Erledigte: grau und durchgestrichen. Überfällig: rot. Heute: orange.
-  function markieren(zeilen) {
-    const reihen = box.querySelectorAll('tbody tr');
-    const karten = box.querySelectorAll('.karten-liste .karte');
+  function markieren(container, zeilen) {
+    const reihen = container.querySelectorAll('tbody tr');
+    const karten = container.querySelectorAll('.karten-liste .karte');
     zeilen.forEach(function (z, i) {
       const klassen = [];
       if (istWahr(z.erledigt)) klassen.push('erledigt');
@@ -321,6 +358,23 @@ export async function render(container, ctx) {
     });
   }
 
+  const haken = {
+    gewaehlt: function (z) { return istWahr(z.erledigt); },
+    umschalten: function (z, wert) { abhaken(z, wert); }
+  };
+
+  function liste(box, zeilen, leerText) {
+    zeigeListe(box, zeilen, SPALTEN, karteVon,
+      function (z) {
+        formEnde();
+        offenId = z.id;
+        detailZeigen(z.id, true);
+      },
+      leerText, null, haken
+    );
+    markieren(box, zeilen);
+  }
+
   function zeichne() {
     const f = {
       q: suche.value.trim().toLowerCase(),
@@ -330,44 +384,39 @@ export async function render(container, ctx) {
       meine: meine.checked,
       name: getName()
     };
-    const zeilen = sortieren(daten.todos.filter(function (t) { return treffer(t, f); }));
-    gezeigt = zeilen.length;
+    const passend = daten.todos.filter(function (t) { return treffer(t, f); });
+    const offen = sortieren(passend.filter(function (t) { return !istWahr(t.erledigt); }));
+    const erledigt = sortiereErledigte(passend.filter(function (t) { return istWahr(t.erledigt); }));
+    const neuere = erledigt.filter(function (t) { return !istArchiv(t); });
+    const aeltere = erledigt.filter(istArchiv);
 
-    const leerText = daten.todos.length ? 'Nichts gefunden.' : 'Noch keine ToDos eingetragen.';
+    zahlen.textContent = daten.todos.length ? zahlenText(daten.todos, getName()) : '';
 
-    zeigeListe(box, zeilen,
-      [
-        { name: 'text', label: 'ToDo', wert: function (z) { return kurz(z.text, 90); } },
-        { name: 'verantwortlich', label: 'Verantwortlich' },
-        { name: 'faellig_am', label: 'Fällig', wert: function (z) { return faelligText(z); } },
-        { name: 'prioritaet', label: 'Priorität', wert: function (z) { return prioText(z.prioritaet); } },
-        { name: '_status', label: 'Status', wert: function (z) { return istWahr(z.erledigt) ? 'Erledigt' : 'Offen'; } }
-      ],
-      function (z) {
-        const fertig = istWahr(z.erledigt);
-        return {
-          titel: kurz(z.text, 120),
-          zeilen: [
-            [z.verantwortlich,
-              z.faellig_am ? 'Fällig ' + faelligText(z) : '',
-              prioText(z.prioritaet)].filter(Boolean).join(' · '),
-            fertig ? 'Erledigt' + (z.erledigt_von ? ' von ' + z.erledigt_von : '') : ''
-          ]
-        };
-      },
-      function (z) {
-        formEnde();
-        offenId = z.id;
-        detailZeigen(z.id, true);
-      },
-      leerText,
-      null,
-      {
-        gewaehlt: function (z) { return istWahr(z.erledigt); },
-        umschalten: function (z, wert) { abhaken(z, wert); }
-      }
-    );
-    markieren(zeilen);
+    const archivAnzahl = daten.todos.filter(istArchiv).length;
+    archivKnopf.textContent = archivModus
+      ? '← Zurück zu den ToDos'
+      : 'Archiv' + (archivAnzahl ? ' (' + archivAnzahl + ')' : '');
+
+    if (archivModus) {
+      boxOffen.hidden = true;
+      kopfErledigt.hidden = false;
+      boxErledigt.hidden = false;
+      kopfErledigt.textContent = 'Archiv: vor mehr als 2 Wochen erledigt (' + aeltere.length + ')';
+      liste(boxErledigt, aeltere, archivAnzahl
+        ? 'Nichts gefunden.'
+        : 'Das Archiv ist leer. Erledigte ToDos landen hier nach 2 Wochen.');
+      zaehlText = aeltere.length + ' im Archiv';
+    } else {
+      boxOffen.hidden = false;
+      liste(boxOffen, offen, daten.todos.length
+        ? 'Keine offenen ToDos gefunden.'
+        : 'Noch keine ToDos eingetragen.');
+      kopfErledigt.hidden = !neuere.length;
+      boxErledigt.hidden = !neuere.length;
+      kopfErledigt.textContent = 'Erledigt, letzte 2 Wochen (' + neuere.length + ')';
+      liste(boxErledigt, neuere, '');
+      zaehlText = offen.length + ' offen · ' + neuere.length + ' erledigt';
+    }
     statusZeigen();
   }
 
