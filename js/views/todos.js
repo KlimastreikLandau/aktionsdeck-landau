@@ -1,7 +1,7 @@
 // js/views/todos.js
-// Reiter ToDos: Liste mit Suche, Details, Anlegen, Ändern, Löschen und Abhaken.
+// Reiter ToDos: Liste mit Suche und Filtern, Abhaken, Details, Anlegen, Ändern, Löschen.
 // Alle ToDos bleiben sichtbar. Erledigte stehen unten, grau und durchgestrichen.
-// Abhaken wirkt sofort und wird ohne Konfliktprüfung gespeichert (ändert nur erledigt-Felder).
+// Abhaken wird ohne Konfliktprüfung gespeichert (ändert nur erledigt, erledigt_am, erledigt_von).
 
 import { el, leeren } from '../ui/dom.js';
 import { api } from '../api.js';
@@ -13,45 +13,9 @@ import { toast } from '../ui/toast.js';
 import { getName } from '../store.js';
 import { SCHEMA, istWahr } from '../schema.js';
 import { zeitText } from './material-rechnen.js';
-
-const PRIO_TEXT = { hoch: 'Hoch', normal: 'Normal', niedrig: 'Niedrig' };
-
-function datumText(s) {
-  const t = String(s || '').slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t.split('-').reverse().join('.') : String(s || '');
-}
-
-function prioText(p) {
-  return PRIO_TEXT[String(p || '').trim()] || '';
-}
-
-function kurz(text, max) {
-  const t = String(text || '').replace(/\s+/g, ' ').trim();
-  return t.length > max ? t.slice(0, max - 1) + '…' : t;
-}
-
-function heute() {
-  const d = new Date();
-  const zz = function (n) { return (n < 10 ? '0' : '') + n; };
-  return d.getFullYear() + '-' + zz(d.getMonth() + 1) + '-' + zz(d.getDate());
-}
-
-// Offene zuerst, dann nach Fälligkeit (ohne Datum zuletzt), dann nach Erstelldatum
-function sortieren(liste) {
-  return liste.slice().sort(function (a, b) {
-    const ea = istWahr(a.erledigt);
-    const eb = istWahr(b.erledigt);
-    if (ea !== eb) return ea ? 1 : -1;
-    const fa = String(a.faellig_am || '').slice(0, 10);
-    const fb = String(b.faellig_am || '').slice(0, 10);
-    if (fa !== fb) {
-      if (!fa) return 1;
-      if (!fb) return -1;
-      return fa < fb ? -1 : 1;
-    }
-    return String(a.erstellt_am || '').localeCompare(String(b.erstellt_am || ''));
-  });
-}
+import {
+  datumText, prioText, kurz, heuteIso, faelligStatus, faelligText, sortieren, treffer
+} from './todos-rechnen.js';
 
 function paare(liste) {
   const dl = el('dl', { class: 'detail-liste' });
@@ -69,13 +33,31 @@ export async function render(container, ctx) {
   let daten = { todos: [] };
   let offenId = null;
   let formOffen = false;
-  let ausstehend = 0;      // Anzahl Abhak-Speicherungen, die gerade laufen
-  let letzterStand = '';   // Zeit der letzten frischen Ladung (für den Zwischenspeicher)
+  let meta = null;
+  let offline = false;
+  let gezeigt = 0;
+  const arbeitet = {};
 
   const status = el('p', { class: 'leise', text: 'Lade Daten …' });
   const suche = el('input', {
-    class: 'feld', type: 'search', placeholder: 'Suchen …', 'aria-label': 'Suchen'
+    class: 'feld suche-feld', type: 'search', placeholder: 'Suchen …', 'aria-label': 'Suchen'
   });
+  const wer = el('select', { class: 'feld', 'aria-label': 'Verantwortlich' });
+  const faellig = el('select', { class: 'feld', 'aria-label': 'Fälligkeit' },
+    el('option', { value: '', text: 'Alle Termine' }),
+    el('option', { value: 'ueberfaellig', text: 'Überfällig' }),
+    el('option', { value: 'heute', text: 'Heute fällig' }),
+    el('option', { value: 'woche', text: 'Diese Woche' }),
+    el('option', { value: 'ohne', text: 'Ohne Datum' })
+  );
+  const prio = el('select', { class: 'feld', 'aria-label': 'Priorität' },
+    el('option', { value: '', text: 'Alle Prioritäten' }),
+    el('option', { value: 'hoch', text: 'Hoch' }),
+    el('option', { value: 'normal', text: 'Normal' }),
+    el('option', { value: 'niedrig', text: 'Niedrig' })
+  );
+  const meine = el('input', { type: 'checkbox' });
+  const meineFeld = el('label', { class: 'formfeld-bool' }, meine, el('span', { text: 'Nur meine' }));
   const box = el('div');
   const neuKnopf = el('button', {
     class: 'knopf', type: 'button', text: '+ Neu',
@@ -84,67 +66,95 @@ export async function render(container, ctx) {
 
   container.append(el('div', { class: 'seite' },
     el('div', { class: 'kopfzeile' }, el('h1', { text: 'ToDos' }), neuKnopf),
-    el('div', { class: 'filterzeile' }, suche),
+    el('div', { class: 'filterzeile filter-todos' }, suche, wer, faellig, prio, meineFeld),
     status,
     box
   ));
 
   // ---- Hilfen ----
 
-  function verantwortlicheVorschlaege() {
+  function werteVonVerantwortlich() {
     const liste = [];
-    const merke = function (p) {
-      const t = String(p || '').trim();
-      if (t && liste.indexOf(t) < 0) liste.push(t);
-    };
-    merke(getName());
-    daten.todos.forEach(function (t) { merke(t.verantwortlich); });
+    daten.todos.forEach(function (t) {
+      const k = String(t.verantwortlich || '').trim();
+      if (k && liste.indexOf(k) < 0) liste.push(k);
+    });
     liste.sort(function (a, b) { return a.localeCompare(b, 'de'); });
     return liste;
   }
 
-  function ersetzen(eintrag) {
-    const i = daten.todos.findIndex(function (x) { return String(x.id) === String(eintrag.id); });
-    if (i >= 0) daten.todos[i] = eintrag;
+  function verantwortlicheVorschlaege() {
+    const liste = werteVonVerantwortlich();
+    const n = getName();
+    if (n && liste.indexOf(n) < 0) liste.push(n);
+    liste.sort(function (a, b) { return a.localeCompare(b, 'de'); });
+    return liste;
   }
 
-  // ---- Abhaken: sofort anzeigen, im Hintergrund speichern, ohne "bekannt" ----
+  function werAufbauen() {
+    const alt = wer.value;
+    const liste = werteVonVerantwortlich();
+    leeren(wer);
+    wer.append(
+      el('option', { value: '', text: 'Alle Verantwortlichen' }),
+      el('option', { value: '__leer', text: 'Ohne Verantwortliche' })
+    );
+    liste.forEach(function (k) { wer.append(el('option', { value: k, text: k })); });
+    wer.value = (alt === '__leer' || liste.indexOf(alt) >= 0) ? alt : '';
+  }
 
-  async function abhaken(t, wert) {
-    const aenderung = {
-      erledigt: wert,
-      erledigt_am: wert ? heute() : '',
-      erledigt_von: wert ? (getName() || 'unbekannt') : ''
-    };
-    const vorher = t;
-    ausstehend++;
-    ersetzen(Object.assign({}, t, aenderung));
-    zeichne();
-    if (offenId && !formOffen) detailZeigen(offenId, false);
-
-    try {
-      const r = await api('update', {
-        tabelle: 'ToDos', id: t.id, daten: aenderung
-      }, s.token);
-      ersetzen(r.eintrag);
-      if (letzterStand) {
-        cacheSet(s.gruppe_id + ':todos', { daten: daten, stand: letzterStand });
-      }
-    } catch (e) {
-      ersetzen(vorher);
-      if (ctx.behandleFehler(e)) { ausstehend--; return; }
-      toast(e.code === 'netz'
-        ? 'Keine Verbindung. Das Häkchen wurde nicht gespeichert.'
-        : 'Nicht gespeichert: ' + e.message);
-      ausstehend--;
-      zeichne();
-      if (offenId && !formOffen) detailZeigen(offenId, false);
-      laden(false);
+  function statusZeigen() {
+    if (!meta) return;
+    if (offline) {
+      status.className = 'fehler';
+      status.textContent = 'Keine Verbindung. Du siehst den letzten Stand.';
       return;
     }
-    ausstehend--;
+    const gesamt = daten.todos.length;
+    const n = gezeigt === gesamt ? gesamt + ' Einträge' : gezeigt + ' von ' + gesamt + ' Einträgen';
+    status.className = 'leise';
+    status.textContent = meta.aktuell
+      ? n + ' · Stand ' + zeitText(meta.stand)
+      : 'Zwischengespeichert von ' + zeitText(meta.stand) + '. Aktualisiere …';
+  }
+
+  // ---- Abhaken (ohne Konfliktprüfung) ----
+
+  async function abhaken(t, wert) {
+    const id = String(t.id);
+    if (arbeitet[id]) return;
+    arbeitet[id] = true;
+
+    const alt = { erledigt: t.erledigt, erledigt_am: t.erledigt_am, erledigt_von: t.erledigt_von };
+    const neu = wert
+      ? { erledigt: true, erledigt_am: heuteIso(), erledigt_von: getName() || 'unbekannt' }
+      : { erledigt: false, erledigt_am: '', erledigt_von: '' };
+
+    Object.assign(t, neu);
     zeichne();
     if (offenId && !formOffen) detailZeigen(offenId, false);
+
+    let laden_noetig = false;
+    try {
+      const r = await api('update', { tabelle: 'ToDos', id: t.id, daten: neu }, s.token);
+      const i = daten.todos.findIndex(function (x) { return String(x.id) === id; });
+      if (i >= 0 && r && r.eintrag) daten.todos[i] = r.eintrag;
+      cacheSet(s.gruppe_id + ':todos', { daten: daten, stand: new Date().toISOString() });
+    } catch (e) {
+      Object.assign(t, alt);
+      if (!ctx.behandleFehler(e)) {
+        if (e.code === 'nicht_gefunden') {
+          toast('Dieses ToDo gibt es nicht mehr.');
+          laden_noetig = true;
+        } else {
+          toast(e.message);
+        }
+      }
+    }
+    delete arbeitet[id];
+    zeichne();
+    if (offenId && !formOffen) detailZeigen(offenId, false);
+    if (laden_noetig) laden(false);
   }
 
   // ---- Detail ----
@@ -180,7 +190,7 @@ export async function render(container, ctx) {
       paare([
         ['Status', fertig ? 'Erledigt' : 'Offen'],
         ['Verantwortlich', t.verantwortlich],
-        ['Fällig am', datumText(t.faellig_am)],
+        ['Fällig am', faelligText(t)],
         ['Priorität', prioText(t.prioritaet)],
         ['Erledigt von', fertig ? t.erledigt_von : ''],
         ['Erledigt am', fertig ? datumText(t.erledigt_am) : ''],
@@ -247,7 +257,7 @@ export async function render(container, ctx) {
       if (ctx.behandleFehler(e)) return;
       if (e.code === 'konflikt') {
         laden(false);
-        throw new Error('Jemand anderes hat dieses ToDo gerade geändert (oder abgehakt). ' +
+        throw new Error('Jemand anderes hat dieses ToDo gerade geändert. ' +
           'Klicke auf „Abbrechen“ und öffne es noch einmal.');
       }
       throw e;
@@ -276,13 +286,33 @@ export async function render(container, ctx) {
 
   // ---- Liste ----
 
+  // Erledigte: grau und durchgestrichen. Überfällig: rot. Heute: orange.
+  function markieren(zeilen) {
+    const reihen = box.querySelectorAll('tbody tr');
+    const karten = box.querySelectorAll('.karten-liste .karte');
+    zeilen.forEach(function (z, i) {
+      const klassen = [];
+      if (istWahr(z.erledigt)) klassen.push('erledigt');
+      const st = faelligStatus(z);
+      if (st) klassen.push(st);
+      klassen.forEach(function (k) {
+        if (reihen[i]) reihen[i].classList.add(k);
+        if (karten[i]) karten[i].classList.add(k);
+      });
+    });
+  }
+
   function zeichne() {
-    const q = suche.value.trim().toLowerCase();
-    const zeilen = sortieren(daten.todos.filter(function (t) {
-      if (!q) return true;
-      return [t.text, t.verantwortlich, prioText(t.prioritaet), datumText(t.faellig_am)]
-        .join(' ').toLowerCase().indexOf(q) >= 0;
-    }));
+    const f = {
+      q: suche.value.trim().toLowerCase(),
+      wer: wer.value,
+      faellig: faellig.value,
+      prio: prio.value,
+      meine: meine.checked,
+      name: getName()
+    };
+    const zeilen = sortieren(daten.todos.filter(function (t) { return treffer(t, f); }));
+    gezeigt = zeilen.length;
 
     const leerText = daten.todos.length ? 'Nichts gefunden.' : 'Noch keine ToDos eingetragen.';
 
@@ -290,7 +320,7 @@ export async function render(container, ctx) {
       [
         { name: 'text', label: 'ToDo', wert: function (z) { return kurz(z.text, 90); } },
         { name: 'verantwortlich', label: 'Verantwortlich' },
-        { name: 'faellig_am', label: 'Fällig', wert: function (z) { return datumText(z.faellig_am); } },
+        { name: 'faellig_am', label: 'Fällig', wert: function (z) { return faelligText(z); } },
         { name: 'prioritaet', label: 'Priorität', wert: function (z) { return prioText(z.prioritaet); } },
         { name: '_status', label: 'Status', wert: function (z) { return istWahr(z.erledigt) ? 'Erledigt' : 'Offen'; } }
       ],
@@ -300,7 +330,7 @@ export async function render(container, ctx) {
           titel: kurz(z.text, 120),
           zeilen: [
             [z.verantwortlich,
-              z.faellig_am ? 'Fällig ' + datumText(z.faellig_am) : '',
+              z.faellig_am ? 'Fällig ' + faelligText(z) : '',
               prioText(z.prioritaet)].filter(Boolean).join(' · '),
             fertig ? 'Erledigt' + (z.erledigt_von ? ' von ' + z.erledigt_von : '') : ''
           ]
@@ -314,28 +344,22 @@ export async function render(container, ctx) {
       leerText,
       null,
       {
-        klasse: function (z) { return istWahr(z.erledigt) ? 'erledigt' : ''; },
-        haken: {
-          gesetzt: function (z) { return istWahr(z.erledigt); },
-          umschalten: function (z, wert) { abhaken(z, wert); },
-          label: function (z) { return 'Erledigt: ' + kurz(z.text, 40); }
-        }
+        gewaehlt: function (z) { return istWahr(z.erledigt); },
+        umschalten: function (z, wert) { abhaken(z, wert); }
       }
     );
+    markieren(zeilen);
+    statusZeigen();
   }
 
-  function zeigen(neu, meta) {
-    // Während ein Häkchen noch gespeichert wird, nichts überschreiben
-    if (ausstehend > 0) return;
+  function zeigen(neu, m) {
     daten = neu;
-    if (meta.aktuell) letzterStand = meta.stand;
+    meta = m;
+    offline = false;
+    werAufbauen();
     zeichne();
     // Ein offenes Formular wird bei der Aktualisierung nicht überschrieben.
     if (offenId && !formOffen) detailZeigen(offenId, false);
-    status.className = 'leise';
-    status.textContent = meta.aktuell
-      ? daten.todos.length + ' Einträge · Stand ' + zeitText(meta.stand)
-      : 'Zwischengespeichert von ' + zeitText(meta.stand) + '. Aktualisiere …';
   }
 
   async function laden(zuerstCache) {
@@ -350,8 +374,8 @@ export async function render(container, ctx) {
         zuerstCache
       );
       if (!ok) {
-        status.className = 'fehler';
-        status.textContent = 'Keine Verbindung. Du siehst den letzten Stand.';
+        offline = true;
+        statusZeigen();
       }
     } catch (e) {
       if (ctx.behandleFehler(e)) return;
@@ -361,6 +385,10 @@ export async function render(container, ctx) {
   }
 
   suche.addEventListener('input', zeichne);
-  ctx.setzeRefresh(function () { return ausstehend > 0 ? null : laden(false); });
+  wer.addEventListener('change', zeichne);
+  faellig.addEventListener('change', zeichne);
+  prio.addEventListener('change', zeichne);
+  meine.addEventListener('change', zeichne);
+  ctx.setzeRefresh(function () { return laden(false); });
   await laden(true);
 }
