@@ -7,11 +7,12 @@ var BASIS = ['id', 'gruppe_id', 'erstellt_am', 'erstellt_von',
 // Daten-Tabs: nur die eigenen Spalten (BASIS kommt automatisch davor)
 // Material: typ = fest | verbrauch (leer zählt als fest)
 // Ausleihe: art = mitgenommen | zurueck | defekt
+// ToDos: text = Titel, details = weitere Informationen
 var TABELLEN = {
   Personen: ['name', 'aktiv'],
   Material: ['name', 'kategorie', 'unterkategorie', 'anzahl', 'einheit', 'ort', 'foto_id', 'notiz', 'aktiv', 'typ'],
   Ausleihe: ['material_id', 'projekt_id', 'person', 'art', 'anzahl', 'datum', 'notiz'],
-  ToDos: ['projekt_id', 'post_id', 'text', 'verantwortlich', 'faellig_am', 'erledigt', 'erledigt_am', 'erledigt_von', 'prioritaet', 'sortierung'],
+  ToDos: ['projekt_id', 'post_id', 'text', 'verantwortlich', 'faellig_am', 'erledigt', 'erledigt_am', 'erledigt_von', 'prioritaet', 'sortierung', 'details'],
   Projekte: ['titel', 'beschreibung', 'ort', 'status', 'start_datum', 'aktionsdatum', 'deadline', 'budget_geplant'],
   Meilensteine: ['projekt_id', 'titel', 'datum', 'verantwortlich', 'erledigt'],
   Projekt_Team: ['projekt_id', 'person', 'zustaendigkeit'],
