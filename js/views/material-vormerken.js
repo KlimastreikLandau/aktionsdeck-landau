@@ -39,7 +39,7 @@ export async function zeigeVormerkDialog(opt) {
     return;
   }
   if (!projekte.length) {
-    toast('Es gibt noch kein offenes Projekt. Projekte kommen mit Etappe 4.');
+    toast('Es gibt noch kein offenes Projekt. Lege zuerst im Reiter Projekte eins an.');
     return;
   }
 
