@@ -33,7 +33,8 @@ export const SCHEMA = {
   ToDos: {
     titel: 'ToDos',
     felder: [
-      { name: 'text', label: 'Was ist zu tun?', typ: 'langtext', pflicht: true },
+      { name: 'text', label: 'Titel', typ: 'text', pflicht: true },
+      { name: 'details', label: 'Weitere Informationen (freiwillig)', typ: 'langtext' },
       { name: 'verantwortlich', label: 'Verantwortlich', typ: 'text' },
       { name: 'faellig_am', label: 'Fällig am', typ: 'datum' },
       { name: 'prioritaet', label: 'Priorität', typ: 'auswahl', optionen: ['hoch', 'normal', 'niedrig'] }
