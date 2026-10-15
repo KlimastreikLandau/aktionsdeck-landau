@@ -4,10 +4,7 @@
 // karte:   function(zeile) -> { titel, zeilen: [text, ...] }
 // onKlick: function(zeile) oder null
 // auswahl (optional): { gewaehlt(z), erlaubt(z), umschalten(z, wert) } -> Checkboxen, Klick wählt aus
-// extra (optional):
-//   klasse(z)  -> Text mit CSS-Klassen für Zeile und Karte (z. B. "erledigt")
-//   haken      -> { gesetzt(z), umschalten(z, wert), label?(z) }: Kästchen, das sofort etwas auslöst.
-//                 Ein Klick auf das Kästchen öffnet NICHT das Detail.
+// haken (optional):   { gewaehlt(z), umschalten(z, wert) } -> Kästchen "erledigt", Klick auf die Zeile öffnet weiter das Detail
 
 import { el, leeren } from './dom.js';
 
@@ -17,7 +14,7 @@ function klickbar(e, zeile, onKlick) {
   e.tabIndex = 0;
   e.addEventListener('click', function () { onKlick(zeile); });
   e.addEventListener('keydown', function (ev) {
-    if (ev.key === 'Enter' && ev.target === e) onKlick(zeile);
+    if (ev.key === 'Enter') onKlick(zeile);
   });
 }
 
@@ -28,55 +25,37 @@ function abgleichen(container, id, wert) {
   });
 }
 
-function abgleichenHaken(container, id, wert) {
-  container.querySelectorAll('input.haken-box').forEach(function (c) {
-    if (c.getAttribute('data-haken') === String(id)) c.checked = wert;
-  });
+function titelVon(z) {
+  return String(z.name || z.text || '').slice(0, 60);
 }
 
-function checkbox(z, auswahl, container) {
+function checkbox(z, boxen, container, suffix) {
   const cb = el('input', {
     type: 'checkbox',
     class: 'auswahl-box',
     'data-id': String(z.id),
-    'aria-label': String(z.name) + ' auswählen'
+    'aria-label': titelVon(z) + suffix
   });
-  cb.checked = auswahl.gewaehlt(z);
-  cb.disabled = !auswahl.erlaubt(z);
+  cb.checked = boxen.gewaehlt(z);
+  cb.disabled = boxen.erlaubt ? !boxen.erlaubt(z) : false;
   cb.addEventListener('click', function (ev) { ev.stopPropagation(); });
+  cb.addEventListener('keydown', function (ev) { ev.stopPropagation(); });
   cb.addEventListener('change', function () {
-    auswahl.umschalten(z, cb.checked);
+    boxen.umschalten(z, cb.checked);
     abgleichen(container, z.id, cb.checked);
   });
   return cb;
 }
 
-function hakenBox(z, haken, container) {
-  const cb = el('input', {
-    type: 'checkbox',
-    class: 'auswahl-box haken-box',
-    'data-haken': String(z.id),
-    'aria-label': haken.label ? haken.label(z) : 'Erledigt'
-  });
-  cb.checked = !!haken.gesetzt(z);
-  cb.addEventListener('click', function (ev) { ev.stopPropagation(); });
-  cb.addEventListener('change', function () {
-    abgleichenHaken(container, z.id, cb.checked);
-    haken.umschalten(z, cb.checked);
-  });
-  return cb;
-}
-
-export function zeigeListe(container, zeilen, spalten, karte, onKlick, leerText, auswahl, extra) {
-  const ex = extra || {};
-  const haken = auswahl ? null : (ex.haken || null);
-  const klasseVon = ex.klasse || function () { return ''; };
-
+export function zeigeListe(container, zeilen, spalten, karte, onKlick, leerText, auswahl, haken) {
   leeren(container);
   if (!zeilen.length) {
     container.append(el('p', { class: 'leise', text: leerText || 'Nichts gefunden.' }));
     return;
   }
+
+  const boxen = auswahl || haken || null;
+  const suffix = auswahl ? ' auswählen' : ' erledigt';
 
   let klick = onKlick;
   if (auswahl) {
@@ -91,17 +70,16 @@ export function zeigeListe(container, zeilen, spalten, karte, onKlick, leerText,
   const kopfZellen = spalten.map(function (sp) {
     return el('th', { scope: 'col', class: sp.zahl ? 'zahl' : '', text: sp.label });
   });
-  if (auswahl || haken) {
+  if (boxen) {
     kopfZellen.unshift(el('th', { scope: 'col', class: 'auswahl-spalte' },
-      el('span', { class: 'nur-leser', text: haken ? 'Erledigt' : 'Auswahl' })));
+      el('span', { class: 'nur-leser', text: auswahl ? 'Auswahl' : 'Erledigt' })));
   }
   const kopf = el('tr', null, ...kopfZellen);
   const rumpf = el('tbody');
   const karten = el('div', { class: 'karten-liste' });
 
   zeilen.forEach(function (z) {
-    const zusatzKlasse = String(klasseVon(z) || '').trim();
-
+    const gesperrt = !!(auswahl && !auswahl.erlaubt(z));
     const zellen = spalten.map(function (sp) {
       const w = sp.wert ? sp.wert(z) : z[sp.name];
       return el('td', {
@@ -109,14 +87,10 @@ export function zeigeListe(container, zeilen, spalten, karte, onKlick, leerText,
         text: w === null || w === undefined ? '' : String(w)
       });
     });
-    if (auswahl) {
-      zellen.unshift(el('td', { class: 'auswahl-spalte' }, checkbox(z, auswahl, container)));
-    } else if (haken) {
-      zellen.unshift(el('td', { class: 'auswahl-spalte' }, hakenBox(z, haken, container)));
+    if (boxen) {
+      zellen.unshift(el('td', { class: 'auswahl-spalte' }, checkbox(z, boxen, container, suffix)));
     }
-    const trKlasse = [auswahl && !auswahl.erlaubt(z) ? 'gesperrt' : '', zusatzKlasse]
-      .filter(Boolean).join(' ');
-    const tr = el('tr', { class: trKlasse }, ...zellen);
+    const tr = el('tr', { class: gesperrt ? 'gesperrt' : '' }, ...zellen);
     klickbar(tr, z, klick);
     rumpf.append(tr);
 
@@ -128,19 +102,12 @@ export function zeigeListe(container, zeilen, spalten, karte, onKlick, leerText,
       })
     );
     let kk;
-    if (auswahl) {
+    if (boxen) {
       kk = el('div', {
-        class: ['karte listenkarte mit-box', auswahl.erlaubt(z) ? '' : 'gesperrt', zusatzKlasse]
-          .filter(Boolean).join(' ')
-      }, checkbox(z, auswahl, container), text);
-    } else if (haken) {
-      kk = el('div', {
-        class: ['karte listenkarte mit-box', zusatzKlasse].filter(Boolean).join(' ')
-      }, hakenBox(z, haken, container), text);
+        class: 'karte listenkarte mit-box' + (gesperrt ? ' gesperrt' : '')
+      }, checkbox(z, boxen, container, suffix), text);
     } else {
-      kk = el('div', {
-        class: ['karte listenkarte', zusatzKlasse].filter(Boolean).join(' ')
-      }, text);
+      kk = el('div', { class: 'karte listenkarte' }, text);
     }
     klickbar(kk, z, klick);
     karten.append(kk);
