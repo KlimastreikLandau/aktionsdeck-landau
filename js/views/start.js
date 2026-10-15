@@ -1,6 +1,6 @@
 // js/views/start.js
 // Start-Reiter: Dashboard. Kachel ToDos zeigt die offenen, allgemeinen ToDos (ohne Projekt und Post).
-// Erledigte per Schalter oben rechts. ToDos haben ein Kästchen zum Abhaken.
+// Erledigte (nur die der letzten 2 Wochen) per Schalter oben rechts. ToDos haben ein Kästchen zum Abhaken.
 // Die anderen Kacheln sind noch Platzhalter (Projekte Etappe 4, Posts/Kalender Etappe 5).
 
 import { el, leeren } from '../ui/dom.js';
@@ -14,7 +14,7 @@ import { zeitText } from './material-rechnen.js';
 import { abhakWerte, abhakenSpeichern } from './todos-abhaken.js';
 import {
   kurz, faelligStatus, faelligText, prioText, sortieren, sortiereErledigte,
-  istAllgemein, zahlenText
+  istAllgemein, istArchiv, zahlenText
 } from './todos-rechnen.js';
 
 const MAX_OFFEN = 10;
@@ -49,17 +49,13 @@ export async function render(container, ctx) {
     el('div', { class: 'dash-kachel-kopf' },
       el('div', { class: 'dash-kachel-titel' },
         el('h2', { text: 'ToDos' }),
-        el('a', { href: todosLink, text: 'Alle ToDos →' })
+        el('a', { class: 'knopf knopf-hell', href: todosLink, text: 'Alle ToDos →' })
       ),
       filter
     ),
     zahlen,
     liste,
-    fuss,
-    el('p', {
-      class: 'leise',
-      text: 'Hier stehen die allgemeinen ToDos. ToDos aus Projekten stehen im jeweiligen Projekt.'
-    })
+    fuss
   );
 
   container.append(el('div', { class: 'seite' },
@@ -143,7 +139,10 @@ export async function render(container, ctx) {
     if (!letzte) return;
     const alle = letzte.daten.todos.filter(istAllgemein);
     const offen = sortieren(alle.filter(function (t) { return !istWahr(t.erledigt); }));
-    const fertig = sortiereErledigte(alle.filter(function (t) { return istWahr(t.erledigt); }));
+    // Erledigte: nur die der letzten 2 Wochen (ältere stehen im Archiv im Reiter ToDos)
+    const fertig = sortiereErledigte(alle.filter(function (t) {
+      return istWahr(t.erledigt) && !istArchiv(t);
+    }));
 
     zahlen.className = 'dash-zahlen';
     zahlen.textContent = zahlenText(alle, getName());
