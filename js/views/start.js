@@ -1,16 +1,20 @@
 // js/views/start.js
-// Start-Reiter: Dashboard. Kachel ToDos zeigt die offenen ToDos (Erledigte per Schalter).
+// Start-Reiter: Dashboard. Kachel ToDos zeigt die offenen, allgemeinen ToDos (ohne Projekt und Post).
+// Erledigte per Schalter oben rechts. ToDos haben ein Kästchen zum Abhaken.
 // Die anderen Kacheln sind noch Platzhalter (Projekte Etappe 4, Posts/Kalender Etappe 5).
 
 import { el, leeren } from '../ui/dom.js';
 import { api } from '../api.js';
-import { ladeMitCache } from '../cache.js';
+import { ladeMitCache, cacheSet } from '../cache.js';
 import { gruppenLogo } from '../ui/logo.js';
+import { toast } from '../ui/toast.js';
 import { getName } from '../store.js';
 import { istWahr } from '../schema.js';
 import { zeitText } from './material-rechnen.js';
+import { abhakWerte, abhakenSpeichern } from './todos-abhaken.js';
 import {
-  kurz, faelligStatus, faelligText, prioText, sortieren, istMeins
+  kurz, faelligStatus, faelligText, prioText, sortieren, sortiereErledigte,
+  istAllgemein, zahlenText
 } from './todos-rechnen.js';
 
 const MAX_OFFEN = 10;
@@ -29,8 +33,10 @@ export async function render(container, ctx) {
   leeren(container);
 
   const todosLink = '#/g/' + encodeURIComponent(s.kurzname) + '/todos';
+  const cacheKey = s.gruppe_id + ':todos';
   let letzte = null; // { daten, meta }
   let offline = false;
+  const arbeitet = {};
 
   const zahlen = el('p', { class: 'dash-zahlen', text: 'Lade ToDos …' });
   const erledigteCb = el('input', { type: 'checkbox' });
@@ -38,15 +44,22 @@ export async function render(container, ctx) {
     erledigteCb, el('span', { text: 'Erledigte anzeigen' }));
   const liste = el('ul', { class: 'dash-todo-liste' });
   const fuss = el('p', { class: 'leise' });
-  const alleLink = el('a', { href: todosLink, text: 'Alle ToDos ansehen →' });
 
   const todoKachel = el('section', { class: 'karte dash-kachel dash-todos' },
-    el('h2', { text: 'ToDos' }),
+    el('div', { class: 'dash-kachel-kopf' },
+      el('div', { class: 'dash-kachel-titel' },
+        el('h2', { text: 'ToDos' }),
+        el('a', { href: todosLink, text: 'Alle ToDos →' })
+      ),
+      filter
+    ),
     zahlen,
-    filter,
     liste,
-    el('p', null, alleLink),
-    fuss
+    fuss,
+    el('p', {
+      class: 'leise',
+      text: 'Hier stehen die allgemeinen ToDos. ToDos aus Projekten stehen im jeweiligen Projekt.'
+    })
   );
 
   container.append(el('div', { class: 'seite' },
@@ -65,9 +78,41 @@ export async function render(container, ctx) {
     )
   ));
 
+  // ---- Abhaken (ohne Konfliktprüfung) ----
+
+  async function abhaken(t, wert) {
+    const id = String(t.id);
+    if (arbeitet[id]) return;
+    arbeitet[id] = true;
+
+    const alt = { erledigt: t.erledigt, erledigt_am: t.erledigt_am, erledigt_von: t.erledigt_von };
+    const neu = abhakWerte(wert);
+    Object.assign(t, neu);
+    zeichne();
+
+    let neuLaden = false;
+    try {
+      const eintrag = await abhakenSpeichern(s.token, t.id, neu);
+      const i = letzte.daten.todos.findIndex(function (x) { return String(x.id) === id; });
+      if (i >= 0 && eintrag) letzte.daten.todos[i] = eintrag;
+      cacheSet(cacheKey, { daten: letzte.daten, stand: new Date().toISOString() });
+      toast(wert ? 'Erledigt.' : 'Wieder geöffnet.');
+    } catch (e) {
+      Object.assign(t, alt);
+      if (!ctx.behandleFehler(e)) {
+        toast(e.code === 'nicht_gefunden' ? 'Dieses ToDo gibt es nicht mehr.' : e.message);
+        if (e.code === 'nicht_gefunden') neuLaden = true;
+      }
+    }
+    delete arbeitet[id];
+    zeichne();
+    if (neuLaden) laden(false);
+  }
+
   function zeile(t) {
+    const fertig = istWahr(t.erledigt);
     const klassen = ['dash-todo'];
-    if (istWahr(t.erledigt)) klassen.push('erledigt');
+    if (fertig) klassen.push('erledigt');
     const st = faelligStatus(t);
     if (st) klassen.push(st);
     const info = [
@@ -75,7 +120,17 @@ export async function render(container, ctx) {
       t.faellig_am ? 'Fällig ' + faelligText(t) : '',
       prioText(t.prioritaet)
     ].filter(Boolean).join(' · ');
-    return el('li', null,
+
+    const cb = el('input', {
+      type: 'checkbox',
+      class: 'auswahl-box',
+      'aria-label': kurz(t.text, 60) + ' erledigt'
+    });
+    cb.checked = fertig;
+    cb.addEventListener('change', function () { abhaken(t, cb.checked); });
+
+    return el('li', { class: 'dash-zeile' + (fertig ? ' erledigt' : '') },
+      cb,
       el('a', { class: klassen.join(' '), href: todosLink },
         el('strong', { text: kurz(t.text, 90) }),
         info ? el('span', { class: 'leise', text: info }) : null
@@ -86,18 +141,12 @@ export async function render(container, ctx) {
   function zeichne() {
     leeren(liste);
     if (!letzte) return;
-    const alle = letzte.daten.todos;
+    const alle = letzte.daten.todos.filter(istAllgemein);
     const offen = sortieren(alle.filter(function (t) { return !istWahr(t.erledigt); }));
-    const fertig = alle.filter(function (t) { return istWahr(t.erledigt); })
-      .sort(function (a, b) {
-        return String(b.erledigt_am || '').localeCompare(String(a.erledigt_am || ''));
-      });
+    const fertig = sortiereErledigte(alle.filter(function (t) { return istWahr(t.erledigt); }));
 
-    const ueber = offen.filter(function (t) { return faelligStatus(t) === 'ueberfaellig'; }).length;
-    const heute = offen.filter(function (t) { return faelligStatus(t) === 'heute'; }).length;
-    const meine = offen.filter(function (t) { return istMeins(t, getName()); }).length;
-    zahlen.textContent = offen.length + ' offen · ' + ueber + ' überfällig · ' +
-      heute + ' heute fällig · ' + meine + ' für dich';
+    zahlen.className = 'dash-zahlen';
+    zahlen.textContent = zahlenText(alle, getName());
 
     offen.slice(0, MAX_OFFEN).forEach(function (t) { liste.append(zeile(t)); });
     if (offen.length > MAX_OFFEN) {
@@ -106,7 +155,7 @@ export async function render(container, ctx) {
     if (!offen.length) {
       liste.append(el('li', {
         class: 'leise',
-        text: alle.length ? 'Keine offenen ToDos.' : 'Noch keine ToDos eingetragen.'
+        text: alle.length ? 'Keine offenen ToDos.' : 'Noch keine allgemeinen ToDos eingetragen.'
       }));
     }
 
@@ -137,7 +186,7 @@ export async function render(container, ctx) {
   async function laden(zuerstCache) {
     try {
       const ok = await ladeMitCache(
-        s.gruppe_id + ':todos',
+        cacheKey,
         async function () {
           const r = await api('list', { tabelle: 'ToDos' }, s.token);
           return { todos: r.zeilen };
@@ -157,6 +206,10 @@ export async function render(container, ctx) {
   }
 
   erledigteCb.addEventListener('change', zeichne);
-  ctx.setzeRefresh(function () { return laden(false); });
+  // Während ein Häkchen noch gespeichert wird, wird nicht aktualisiert
+  ctx.setzeRefresh(function () {
+    if (Object.keys(arbeitet).length) return Promise.resolve();
+    return laden(false);
+  });
   await laden(true);
 }
