@@ -7,19 +7,22 @@ var BASIS = ['id', 'gruppe_id', 'erstellt_am', 'erstellt_von',
 // Daten-Tabs: nur die eigenen Spalten (BASIS kommt automatisch davor)
 // Material: typ = fest | verbrauch (leer zählt als fest)
 // Ausleihe: art = mitgenommen | zurueck | defekt
-// ToDos: text = Titel, details = weitere Informationen
+// ToDos: text = Titel, details = weitere Informationen, meilenstein_id = Meilenstein im Projekt
+// Protokolle: Absprachen-Protokoll eines Projekts. Kommentare: freie Kommentare zu einem Projekt.
 var TABELLEN = {
   Personen: ['name', 'aktiv'],
   Material: ['name', 'kategorie', 'unterkategorie', 'anzahl', 'einheit', 'ort', 'foto_id', 'notiz', 'aktiv', 'typ'],
   Ausleihe: ['material_id', 'projekt_id', 'person', 'art', 'anzahl', 'datum', 'notiz'],
-  ToDos: ['projekt_id', 'post_id', 'text', 'verantwortlich', 'faellig_am', 'erledigt', 'erledigt_am', 'erledigt_von', 'prioritaet', 'sortierung', 'details'],
+  ToDos: ['projekt_id', 'post_id', 'text', 'verantwortlich', 'faellig_am', 'erledigt', 'erledigt_am', 'erledigt_von', 'prioritaet', 'sortierung', 'details', 'meilenstein_id'],
   Projekte: ['titel', 'beschreibung', 'ort', 'status', 'start_datum', 'aktionsdatum', 'deadline', 'budget_geplant'],
   Meilensteine: ['projekt_id', 'titel', 'datum', 'verantwortlich', 'erledigt'],
   Projekt_Team: ['projekt_id', 'person', 'zustaendigkeit'],
   Projekt_Material: ['projekt_id', 'material_id', 'name', 'kategorie', 'menge', 'beschaffung', 'beschafft', 'notiz'],
   Finanzen: ['projekt_id', 'projekt_material_id', 'posten', 'art', 'menge', 'einzelpreis', 'betrag_geplant', 'betrag_tatsaechlich', 'bezahlt', 'bezahlt_von', 'datum', 'beleg_id'],
   Posts: ['projekt_id', 'titel', 'plattform', 'format', 'text', 'medien_id', 'veroeffentlichung_am', 'status', 'verantwortlich'],
-  Vorlagen_ToDo: ['vorlage_name', 'schritt_text', 'tage_vorher', 'verantwortlich']
+  Vorlagen_ToDo: ['vorlage_name', 'schritt_text', 'tage_vorher', 'verantwortlich'],
+  Protokolle: ['projekt_id', 'datum', 'titel', 'teilnehmende', 'text'],
+  Kommentare: ['projekt_id', 'text']
 };
 
 // System-Tabs (über die API nicht direkt änderbar)
@@ -49,8 +52,8 @@ function spaltenListe(tab) {
   return BASIS.concat(TABELLEN[tab]);
 }
 
-// EINMAL ausführen: stellt Text-Spalten auf "Nur Text", damit Google
-// keine IDs, Zeitstempel oder Datumswerte selbst umwandelt.
+// EINMAL ausführen (und nach neuen Spalten/Tabs wieder): stellt Text-Spalten auf "Nur Text",
+// damit Google keine IDs, Zeitstempel oder Datumswerte selbst umwandelt.
 function formatieren() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var namen = Object.keys(SYSTEM).concat(Object.keys(TABELLEN));
