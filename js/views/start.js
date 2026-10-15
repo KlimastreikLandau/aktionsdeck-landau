@@ -1,6 +1,6 @@
 // js/views/start.js
-// Start-Reiter: Dashboard. Kachel Projekte zeigt die laufenden Projekte mit Fortschrittsbalken (Klick = ins Projekt)
-// und je Projekt einen Schalter "ToDos (n offen)" mit den offenen ToDos zum Abhaken.
+// Start-Reiter: Dashboard. Kachel Projekte zeigt die laufenden Projekte (Aktiv zuerst, dann Planung)
+// mit Fortschrittsbalken (Klick = ins Projekt) und je Projekt einen Schalter "ToDos (n offen)".
 // Kachel ToDos zeigt die offenen, allgemeinen ToDos (ohne Projekt und Post).
 // Erledigte (nur die der letzten 2 Wochen) per Schalter oben rechts. ToDos haben ein Kästchen zum Abhaken.
 // Die anderen Kacheln sind noch Platzhalter (Posts/Kalender Etappe 5).
@@ -37,6 +37,11 @@ const KACHELN = [
   { titel: 'Posts', hinweis: 'Kommt mit Etappe 5' },
   { titel: 'Kalender', hinweis: 'Kommt mit Etappe 5' }
 ];
+
+// Planung = Vorbereitung (auch wenn der Status leer ist)
+function istPlanung(p) {
+  return (String(p.status || '').trim() || 'planung') === 'planung';
+}
 
 export async function render(container, ctx) {
   const s = ctx.session;
@@ -113,10 +118,13 @@ export async function render(container, ctx) {
       projektListe.append(el('p', { class: 'leise', text: 'Lade Projekte …' }));
       return;
     }
-    const laufend = sortiereProjekte(
+    const sortiert = sortiereProjekte(
       projektDaten.projekte.filter(function (p) { return !istAbgeschlossen(p); }),
       false
     );
+    // Aktiv zuerst, danach Planung (Reihenfolge innerhalb bleibt)
+    const laufend = sortiert.filter(function (p) { return !istPlanung(p); })
+      .concat(sortiert.filter(istPlanung));
     if (!laufend.length) {
       projektListe.append(el('p', { class: 'leise', text: 'Noch kein laufendes Projekt.' }));
       return;
@@ -145,7 +153,10 @@ export async function render(container, ctx) {
       const termine = terminText(p);
       const blockEl = el('div', { class: 'dash-projekt-block' },
         el('a', { class: 'dash-projekt', href: href },
-          el('strong', { text: String(p.titel) }),
+          el('span', { class: 'dash-projekt-titel' },
+            el('strong', { text: String(p.titel) }),
+            istPlanung(p) ? el('span', { class: 'status-marke status-planung', text: 'Planung' }) : null
+          ),
           termine ? el('span', { class: 'leise', text: termine }) : null,
           fortschrittsBalken(letzte ? f.prozent : 0, letzte ? fortschrittText(f) : 'Lade ToDos …')
         )
@@ -155,20 +166,29 @@ export async function render(container, ctx) {
         const offene = sortieren(todos.filter(function (t) {
           return String(t.projekt_id || '').trim() === id && !istWahr(t.erledigt);
         }));
-        const d = el('details', { class: 'dash-projekt-todos' });
-        if (projektOffen[id]) d.open = true;
-        d.addEventListener('toggle', function () {
-          if (d.open) projektOffen[id] = true;
-          else delete projektOffen[id];
-        });
-        d.append(el('summary', { text: 'ToDos (' + offene.length + ' offen)' }));
-        const ul = el('ul', { class: 'dash-todo-liste' });
-        offene.forEach(function (t) { ul.append(zeile(t, href)); });
-        if (!offene.length) {
-          ul.append(el('li', { class: 'leise', text: 'Keine offenen ToDos.' }));
+        const aufgeklappt = !!projektOffen[id];
+        const schalter = el('button', {
+          class: 'dash-schalter', type: 'button',
+          'aria-expanded': String(aufgeklappt),
+          onclick: function () {
+            if (projektOffen[id]) delete projektOffen[id];
+            else projektOffen[id] = true;
+            zeichneProjekte();
+          }
+        },
+          el('span', { class: 'teil-pfeil' + (aufgeklappt ? ' auf' : ''), 'aria-hidden': 'true', text: '▸' }),
+          el('span', { text: 'ToDos (' + offene.length + ' offen)' })
+        );
+        const teil = el('div', { class: 'dash-projekt-todos' }, schalter);
+        if (aufgeklappt) {
+          const ul = el('ul', { class: 'dash-todo-liste' });
+          offene.forEach(function (t) { ul.append(zeile(t, href)); });
+          if (!offene.length) {
+            ul.append(el('li', { class: 'leise', text: 'Keine offenen ToDos.' }));
+          }
+          teil.append(ul);
         }
-        d.append(ul);
-        blockEl.append(d);
+        blockEl.append(teil);
       }
       projektListe.append(blockEl);
     });
