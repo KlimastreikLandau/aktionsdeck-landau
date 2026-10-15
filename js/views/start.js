@@ -1,5 +1,6 @@
 // js/views/start.js
-// Start-Reiter: Dashboard. Kachel Projekte zeigt die laufenden Projekte mit Fortschrittsbalken (Klick = ins Projekt).
+// Start-Reiter: Dashboard. Kachel Projekte zeigt die laufenden Projekte mit Fortschrittsbalken (Klick = ins Projekt)
+// und je Projekt einen Schalter "ToDos (n offen)" mit den offenen ToDos zum Abhaken.
 // Kachel ToDos zeigt die offenen, allgemeinen ToDos (ohne Projekt und Post).
 // Erledigte (nur die der letzten 2 Wochen) per Schalter oben rechts. ToDos haben ein Kästchen zum Abhaken.
 // Die anderen Kacheln sind noch Platzhalter (Posts/Kalender Etappe 5).
@@ -25,6 +26,9 @@ import {
 const MAX_OFFEN = 10;
 const MAX_ERLEDIGT = 10;
 const MAX_PROJEKTE = 6;
+
+// Welche Projekte in der Kachel aufgeklappt sind (bleibt beim Reiterwechsel erhalten)
+const projektOffen = {};
 
 const KACHELN = [
   { titel: 'Projekte', projekte: true },
@@ -117,19 +121,58 @@ export async function render(container, ctx) {
       projektListe.append(el('p', { class: 'leise', text: 'Noch kein laufendes Projekt.' }));
       return;
     }
+    const gezeigt = laufend.slice(0, MAX_PROJEKTE);
     const todos = letzte ? letzte.daten.todos : [];
-    laufend.slice(0, MAX_PROJEKTE).forEach(function (p) {
+
+    if (letzte) {
+      const alleAuf = gezeigt.every(function (p) { return projektOffen[String(p.id)]; });
+      projektListe.append(el('div', { class: 'dash-projekt-knopf' },
+        el('button', {
+          class: 'knopf knopf-hell', type: 'button',
+          text: alleAuf ? 'Alle zuklappen' : 'Alle aufklappen',
+          onclick: function () {
+            gezeigt.forEach(function (p) { projektOffen[String(p.id)] = !alleAuf; });
+            zeichneProjekte();
+          }
+        })
+      ));
+    }
+
+    gezeigt.forEach(function (p) {
+      const id = String(p.id);
+      const href = projekteLink + '/' + encodeURIComponent(p.id);
       const f = fortschritt(p.id, todos);
       const termine = terminText(p);
-      projektListe.append(el('a', {
-        class: 'dash-projekt',
-        href: projekteLink + '/' + encodeURIComponent(p.id)
-      },
-        el('strong', { text: String(p.titel) }),
-        termine ? el('span', { class: 'leise', text: termine }) : null,
-        fortschrittsBalken(letzte ? f.prozent : 0, letzte ? fortschrittText(f) : 'Lade ToDos …')
-      ));
+      const blockEl = el('div', { class: 'dash-projekt-block' },
+        el('a', { class: 'dash-projekt', href: href },
+          el('strong', { text: String(p.titel) }),
+          termine ? el('span', { class: 'leise', text: termine }) : null,
+          fortschrittsBalken(letzte ? f.prozent : 0, letzte ? fortschrittText(f) : 'Lade ToDos …')
+        )
+      );
+
+      if (letzte) {
+        const offene = sortieren(todos.filter(function (t) {
+          return String(t.projekt_id || '').trim() === id && !istWahr(t.erledigt);
+        }));
+        const d = el('details', { class: 'dash-projekt-todos' });
+        if (projektOffen[id]) d.open = true;
+        d.addEventListener('toggle', function () {
+          if (d.open) projektOffen[id] = true;
+          else delete projektOffen[id];
+        });
+        d.append(el('summary', { text: 'ToDos (' + offene.length + ' offen)' }));
+        const ul = el('ul', { class: 'dash-todo-liste' });
+        offene.forEach(function (t) { ul.append(zeile(t, href)); });
+        if (!offene.length) {
+          ul.append(el('li', { class: 'leise', text: 'Keine offenen ToDos.' }));
+        }
+        d.append(ul);
+        blockEl.append(d);
+      }
+      projektListe.append(blockEl);
     });
+
     if (laufend.length > MAX_PROJEKTE) {
       projektListe.append(el('p', {
         class: 'leise', text: '… und ' + (laufend.length - MAX_PROJEKTE) + ' weitere'
@@ -190,7 +233,8 @@ export async function render(container, ctx) {
     if (neuLaden) laden(false);
   }
 
-  function zeile(t) {
+  // href: wohin ein Klick auf den Text führt (Standard: Reiter ToDos)
+  function zeile(t, href) {
     const fertig = istWahr(t.erledigt);
     const klassen = ['dash-todo'];
     if (fertig) klassen.push('erledigt');
@@ -212,7 +256,7 @@ export async function render(container, ctx) {
 
     return el('li', { class: 'dash-zeile' + (fertig ? ' erledigt' : '') },
       cb,
-      el('a', { class: klassen.join(' '), href: todosLink },
+      el('a', { class: klassen.join(' '), href: href || todosLink },
         el('strong', { text: kurz(t.text, 90) }),
         info ? el('span', { class: 'leise', text: info }) : null
       )
