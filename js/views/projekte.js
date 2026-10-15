@@ -1,5 +1,6 @@
 // js/views/projekte.js
 // Reiter Projekte: oben die Übersicht (mit Fortschrittsbalken), darunter ein aufklappbarer Block je Projekt.
+// Laufende Projekte (Aktiv) stehen oben, Projekte in Planung getrennt darunter.
 // Anlegen, Bearbeiten und Löschen laufen in kleinen Fenstern. Löschen nimmt alles Zugehörige mit.
 // Im Block: Teil "ToDos" mit Meilensteinen (projekt-todos.js). Weitere Teile folgen in 4.3 bis 4.6.
 // Die Auswahl (aufgeklappte Projekte und Teile) bleibt beim Reiterwechsel erhalten.
@@ -49,6 +50,11 @@ function euro(v) {
   const n = Number(v);
   if (isNaN(n)) return String(v);
   return n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' €';
+}
+
+// Planung = Vorbereitung (auch wenn der Status leer ist)
+function istPlanung(p) {
+  return (String(p.status || '').trim() || 'planung') === 'planung';
 }
 
 export async function render(container, ctx) {
@@ -104,6 +110,15 @@ export async function render(container, ctx) {
     );
   }
 
+  // Aktiv oben, Planung darunter (im Archiv eine Gruppe ohne Titel)
+  function gruppenVon(liste) {
+    if (archivModus) return liste.length ? [{ titel: '', liste: liste }] : [];
+    return [
+      { titel: 'Aktiv', liste: liste.filter(function (p) { return !istPlanung(p); }) },
+      { titel: 'In Planung', liste: liste.filter(istPlanung) }
+    ].filter(function (g) { return g.liste.length; });
+  }
+
   function wahlAufbauen(liste) {
     const alt = wahl.value;
     leeren(wahl);
@@ -124,9 +139,13 @@ export async function render(container, ctx) {
       status.textContent = 'Keine Verbindung. Du siehst den letzten Stand.';
       return;
     }
+    const archiv = daten.projekte.filter(istAbgeschlossen).length;
+    const laufend = daten.projekte.length - archiv;
+    const zahlen = laufend + (laufend === 1 ? ' laufendes Projekt' : ' laufende Projekte') +
+      ' · ' + archiv + ' im Archiv';
     status.className = 'leise';
     status.textContent = meta.aktuell
-      ? daten.projekte.length + ' Projekte · Stand ' + zeitText(meta.stand)
+      ? zahlen + ' · Stand ' + zeitText(meta.stand)
       : 'Zwischengespeichert von ' + zeitText(meta.stand) + '. Aktualisiere …';
   }
 
@@ -153,6 +172,20 @@ export async function render(container, ctx) {
 
   // ---- Zeichnen ----
 
+  function uebersichtZeile(p) {
+    const f = fortschritt(p.id, daten.todos);
+    return el('button', {
+      class: 'uebersicht-zeile', type: 'button',
+      onclick: function () { springe(p.id); }
+    },
+      el('span', { class: 'uebersicht-kopf' },
+        el('strong', { text: String(p.titel) }),
+        el('span', { class: 'leise', text: terminText(p) })
+      ),
+      fortschrittsBalken(f.prozent, fortschrittText(f))
+    );
+  }
+
   function uebersichtZeichnen(liste) {
     leeren(uebersicht);
     uebersicht.append(el('h2', { text: archivModus ? 'Archiv' : 'Laufende Projekte' }));
@@ -162,18 +195,14 @@ export async function render(container, ctx) {
       uebersicht.append(el('p', { class: 'leise', text: t }));
       return;
     }
-    liste.forEach(function (p) {
-      const f = fortschritt(p.id, daten.todos);
-      uebersicht.append(el('button', {
-        class: 'uebersicht-zeile', type: 'button',
-        onclick: function () { springe(p.id); }
-      },
-        el('span', { class: 'uebersicht-kopf' },
-          el('strong', { text: String(p.titel) }),
-          el('span', { class: 'leise', text: terminText(p) })
-        ),
-        fortschrittsBalken(f.prozent, fortschrittText(f))
-      ));
+    gruppenVon(liste).forEach(function (g) {
+      if (g.titel) {
+        uebersicht.append(el('h3', {
+          class: 'projekt-gruppe-titel',
+          text: g.titel + ' (' + g.liste.length + ')'
+        }));
+      }
+      g.liste.forEach(function (p) { uebersicht.append(uebersichtZeile(p)); });
     });
   }
 
@@ -235,10 +264,7 @@ export async function render(container, ctx) {
           ['Start', datumText(p.start_datum)],
           ['Aktionsdatum', datumText(p.aktionsdatum)],
           ['Deadline', datumText(p.deadline)],
-          ['Geplantes Budget', euro(p.budget_geplant)],
-          ['Angelegt von', p.erstellt_von],
-          ['Zuletzt geändert', p.geaendert_von && p.geaendert_am
-            ? p.geaendert_von + ', ' + zeitText(p.geaendert_am) : '']
+          ['Geplantes Budget', euro(p.budget_geplant)]
         ]),
         todoTeil,
         el('p', {
@@ -274,7 +300,14 @@ export async function render(container, ctx) {
     if (liste.length && !angezeigt.length) {
       box.append(el('p', { class: 'leise', text: 'Nichts gefunden.' }));
     }
-    angezeigt.forEach(function (p) { box.append(block(p)); });
+    gruppenVon(angezeigt).forEach(function (g) {
+      const wrap = el('div', {
+        class: 'projekt-gruppe' + (g.titel === 'In Planung' ? ' projekt-gruppe-planung' : '')
+      });
+      if (g.titel) wrap.append(el('h2', { class: 'projekt-gruppe-titel', text: g.titel }));
+      g.liste.forEach(function (p) { wrap.append(block(p)); });
+      box.append(wrap);
+    });
     statusZeigen();
   }
 
