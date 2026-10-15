@@ -343,9 +343,9 @@ export async function render(container, ctx) {
   // ---- Liste ----
 
   // Erledigte: grau und durchgestrichen. Überfällig: rot. Heute: orange.
-  function markieren(container, zeilen) {
-    const reihen = container.querySelectorAll('tbody tr');
-    const karten = container.querySelectorAll('.karten-liste .karte');
+  function markieren(box, zeilen) {
+    const reihen = box.querySelectorAll('tbody tr');
+    const karten = box.querySelectorAll('.karten-liste .karte');
     zeilen.forEach(function (z, i) {
       const klassen = [];
       if (istWahr(z.erledigt)) klassen.push('erledigt');
@@ -390,6 +390,8 @@ export async function render(container, ctx) {
     const neuere = erledigt.filter(function (t) { return !istArchiv(t); });
     const aeltere = erledigt.filter(istArchiv);
 
+    // Im Archiv gibt es keine Zählzeile
+    zahlen.hidden = archivModus || !daten.todos.length;
     zahlen.textContent = daten.todos.length ? zahlenText(daten.todos, getName()) : '';
 
     const archivAnzahl = daten.todos.filter(istArchiv).length;
