@@ -1,6 +1,7 @@
 // js/ui/form.js
 // Baut ein Formular aus einer Feldliste (siehe js/schema.js).
 // Texte kommen nur über textContent (dom.js), nie über innerHTML.
+// Bei Auswahlfeldern darf "optionen" Texte oder { wert, label } enthalten.
 
 import { el } from './dom.js';
 import { istFalsch } from '../schema.js';
@@ -63,7 +64,11 @@ function eingabe(f, wert, vorschlaege, fotoFn) {
     feld = el('select', { class: 'feld', name: f.name });
     feld.append(el('option', { value: '', text: '–' }));
     (f.optionen || []).forEach(function (o) {
-      feld.append(el('option', { value: o, text: o }));
+      const objekt = o !== null && typeof o === 'object';
+      feld.append(el('option', {
+        value: objekt ? o.wert : o,
+        text: objekt ? o.label : o
+      }));
     });
   } else if (f.typ === 'datum') {
     feld = el('input', { class: 'feld', type: 'date', name: f.name });
