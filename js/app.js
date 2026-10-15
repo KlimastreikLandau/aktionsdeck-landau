@@ -1,5 +1,5 @@
 // js/app.js
-// Startpunkt: Routing mit #/g/<kurzname>/<reiter>, Gerüst, Name, Aktualisierung.
+// Startpunkt: Routing mit #/g/<kurzname>/<reiter>[/<unterpunkt>], Gerüst, Name, Aktualisierung.
 
 import { VERSION, REFRESH_SEKUNDEN } from './config.js';
 import { api } from './api.js';
@@ -175,6 +175,8 @@ async function route() {
     const erlaubt = sichtbareTabs().map(function (t) { return t.id; }).concat('mehr');
     ctx.tab = erlaubt.indexOf(teile[2]) >= 0 ? teile[2] : 'start';
     ctx.tabLabel = tabLabel(ctx.tab);
+    // Unterpunkt, z. B. #/g/fff/projekte/<projekt-id> (nur für Projekte)
+    ctx.unter = ctx.tab === 'projekte' ? (teile[3] || '') : '';
 
     const geruest = baueGeruest(container, ctx);
     ctx.detail = geruest.detail;
