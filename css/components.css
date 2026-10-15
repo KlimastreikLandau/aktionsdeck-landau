@@ -752,3 +752,25 @@ p.notiz.erledigt {
   color: var(--text-leise);
   text-decoration: line-through;
 }
+
+/* ---- Etappe 3: Filter, Fälligkeit ---- */
+
+.filterzeile.filter-todos { grid-template-columns: 1fr; }
+.filter-todos .suche-feld { grid-column: 1 / -1; }
+
+@media (min-width: 600px) {
+  .filterzeile.filter-todos { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 960px) {
+  .filterzeile.filter-todos { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Überfällig = rot, heute fällig = orange (zusätzlich steht es im Text) */
+.tabelle tr.ueberfaellig td { color: #b3261e; font-weight: 600; }
+.tabelle tr.ueberfaellig td:first-child { box-shadow: inset 6px 0 0 #b3261e; }
+.tabelle tr.heute td:first-child { box-shadow: inset 6px 0 0 #c77c00; }
+.tabelle tr.heute td { background: #fff7e8; }
+
+.karte.ueberfaellig { border-left: 6px solid #b3261e; }
+.karte.heute { border-left: 6px solid #c77c00; background: #fff7e8; }
