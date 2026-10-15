@@ -39,6 +39,73 @@ export const SCHEMA = {
       { name: 'faellig_am', label: 'Fällig am', typ: 'datum' },
       { name: 'prioritaet', label: 'Priorität', typ: 'auswahl', optionen: ['hoch', 'normal', 'niedrig'] }
     ]
+  },
+  Projekte: {
+    titel: 'Projekte',
+    felder: [
+      { name: 'titel', label: 'Titel', typ: 'text', pflicht: true },
+      { name: 'beschreibung', label: 'Beschreibung', typ: 'langtext' },
+      { name: 'ort', label: 'Ort', typ: 'text' },
+      { name: 'status', label: 'Status', typ: 'auswahl', optionen: ['planung', 'aktiv', 'erledigt', 'archiviert'] },
+      { name: 'start_datum', label: 'Start', typ: 'datum' },
+      { name: 'aktionsdatum', label: 'Aktionsdatum', typ: 'datum' },
+      { name: 'deadline', label: 'Deadline', typ: 'datum' },
+      { name: 'budget_geplant', label: 'Geplantes Budget (€)', typ: 'zahl' }
+    ]
+  },
+  Meilensteine: {
+    titel: 'Meilensteine',
+    felder: [
+      { name: 'titel', label: 'Titel', typ: 'text', pflicht: true },
+      { name: 'datum', label: 'Datum', typ: 'datum' },
+      { name: 'verantwortlich', label: 'Verantwortlich', typ: 'text' }
+    ]
+  },
+  Projekt_Team: {
+    titel: 'Team',
+    felder: [
+      { name: 'person', label: 'Person', typ: 'text', pflicht: true },
+      { name: 'zustaendigkeit', label: 'Hut (Zuständigkeit)', typ: 'text' }
+    ]
+  },
+  Projekt_Material: {
+    titel: 'Material im Projekt',
+    felder: [
+      { name: 'name', label: 'Name', typ: 'text', pflicht: true },
+      { name: 'kategorie', label: 'Kategorie', typ: 'text' },
+      { name: 'menge', label: 'Menge', typ: 'zahl', pflicht: true },
+      { name: 'beschaffung', label: 'Beschaffung', typ: 'auswahl', optionen: ['vorhanden', 'kaufen', 'mieten', 'leihen'] },
+      { name: 'notiz', label: 'Notiz', typ: 'langtext' }
+    ]
+  },
+  Finanzen: {
+    titel: 'Finanzen',
+    felder: [
+      { name: 'posten', label: 'Posten', typ: 'text', pflicht: true },
+      { name: 'art', label: 'Art', typ: 'auswahl', optionen: ['kauf', 'miete', 'sonstiges'] },
+      { name: 'menge', label: 'Menge', typ: 'zahl' },
+      { name: 'einzelpreis', label: 'Einzelpreis (€)', typ: 'zahl' },
+      { name: 'betrag_geplant', label: 'Geplant (€)', typ: 'zahl' },
+      { name: 'betrag_tatsaechlich', label: 'Tatsächlich (€)', typ: 'zahl' },
+      { name: 'bezahlt_von', label: 'Bezahlt von', typ: 'text' },
+      { name: 'datum', label: 'Datum', typ: 'datum' },
+      { name: 'beleg_id', label: 'Beleg / Hinweis (z. B. Link, keine Kontonummern)', typ: 'text' }
+    ]
+  },
+  Protokolle: {
+    titel: 'Protokoll',
+    felder: [
+      { name: 'datum', label: 'Datum', typ: 'datum' },
+      { name: 'titel', label: 'Titel', typ: 'text', pflicht: true },
+      { name: 'teilnehmende', label: 'Teilnehmende', typ: 'text' },
+      { name: 'text', label: 'Absprachen', typ: 'langtext' }
+    ]
+  },
+  Kommentare: {
+    titel: 'Kommentare',
+    felder: [
+      { name: 'text', label: 'Kommentar', typ: 'langtext', pflicht: true }
+    ]
   }
 };
 
