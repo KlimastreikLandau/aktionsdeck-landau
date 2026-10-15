@@ -1,12 +1,12 @@
 // js/views/projekte.js
 // Reiter Projekte: oben die Übersicht (mit Fortschrittsbalken), darunter ein aufklappbarer Block je Projekt.
 // Anlegen, Bearbeiten und Löschen laufen in kleinen Fenstern. Löschen nimmt alles Zugehörige mit.
-// Weitere Teile im Projekt (ToDos, Material, Finanzen ...) kommen in 4.2 bis 4.6.
-// Die Auswahl (aufgeklappte Projekte) bleibt beim Reiterwechsel erhalten.
+// Im Block: Teil "ToDos" mit Meilensteinen (projekt-todos.js). Weitere Teile folgen in 4.3 bis 4.6.
+// Die Auswahl (aufgeklappte Projekte und Teile) bleibt beim Reiterwechsel erhalten.
 
 import { el, leeren } from '../ui/dom.js';
 import { api } from '../api.js';
-import { ladeMitCache } from '../cache.js';
+import { ladeMitCache, cacheSet } from '../cache.js';
 import { zeigeFenster } from '../ui/fenster.js';
 import { fortschrittsBalken } from '../ui/balken.js';
 import { baueFormular } from '../ui/form.js';
@@ -17,9 +17,11 @@ import { datumText } from './todos-rechnen.js';
 import {
   statusText, istAbgeschlossen, fortschritt, fortschrittText, sortiereProjekte, terminText
 } from './projekt-rechnen.js';
+import { baueTodoTeil } from './projekt-todos.js';
 
 // Bleibt beim Reiterwechsel erhalten. Neue Anmeldung (anderes Token) = leer.
-let merk = { token: '', offen: {} };
+// offen: aufgeklappte Projekte. teile: aufgeklappte Teile ("<id>:todos").
+let merk = { token: '', offen: {}, teile: {} };
 
 // Was beim Löschen eines Projekts mitgelöscht wird (Tab, Anzeigename)
 const TEILE = [
@@ -53,16 +55,17 @@ export async function render(container, ctx) {
   const s = ctx.session;
   leeren(container);
 
-  if (merk.token !== s.token) merk = { token: s.token, offen: {} };
+  if (merk.token !== s.token) merk = { token: s.token, offen: {}, teile: {} };
   const offen = merk.offen;
 
-  let daten = { projekte: [], todos: [] };
+  let daten = { projekte: [], todos: [], meilensteine: [] };
   let archivModus = false;
   let sprungId = ctx.unter || '';   // von der Start-Kachel: dieses Projekt aufklappen
   let letzteJson = '';
   let meta = null;
   let offline = false;
   const bloecke = {};               // id -> Element, zum Hinspringen
+  const arbeitet = {};              // laufende Häkchen (dann keine Aktualisierung)
 
   const status = el('p', { class: 'leise', text: 'Lade Daten …' });
   const suche = el('input', {
@@ -127,6 +130,13 @@ export async function render(container, ctx) {
       : 'Zwischengespeichert von ' + zeitText(meta.stand) + '. Aktualisiere …';
   }
 
+  // Nach lokalen Änderungen (Häkchen): Zwischenspeicher auffrischen
+  function merken() {
+    const stand = new Date().toISOString();
+    cacheSet(s.gruppe_id + ':projekte', { daten: daten, stand: stand });
+    cacheSet(s.gruppe_id + ':todos', { daten: { todos: daten.todos }, stand: stand });
+  }
+
   // Aus der Übersicht zum Projekt springen und es aufklappen
   function springe(id) {
     const k = String(id);
@@ -179,6 +189,23 @@ export async function render(container, ctx) {
       else delete offen[id];
     });
 
+    const teilKey = id + ':todos';
+    const todoTeil = baueTodoTeil({
+      ctx: ctx,
+      token: s.token,
+      projekt: p,
+      holeDaten: function () { return daten; },
+      arbeitet: arbeitet,
+      offen: !!merk.teile[teilKey],
+      beiToggle: function (o) {
+        if (o) merk.teile[teilKey] = true;
+        else delete merk.teile[teilKey];
+      },
+      neuZeichnen: zeichne,
+      neuLaden: function () { return laden(false); },
+      merken: merken
+    });
+
     const termine = terminText(p);
     d.append(
       el('summary', null,
@@ -213,9 +240,10 @@ export async function render(container, ctx) {
           ['Zuletzt geändert', p.geaendert_von && p.geaendert_am
             ? p.geaendert_von + ', ' + zeitText(p.geaendert_am) : '']
         ]),
+        todoTeil,
         el('p', {
           class: 'leise',
-          text: 'ToDos, Meilensteine, Team, Material, Finanzen und Protokoll kommen in den nächsten Schritten hier dazu.'
+          text: 'Team, Material, Finanzen und Protokoll kommen in den nächsten Schritten hier dazu.'
         })
       )
     );
@@ -357,6 +385,10 @@ export async function render(container, ctx) {
   function zeigen(neu, m) {
     offline = false;
     meta = m;
+    // Ältere Zwischenspeicher kennen die Meilensteine noch nicht
+    if (!neu.projekte) neu.projekte = [];
+    if (!neu.todos) neu.todos = [];
+    if (!neu.meilensteine) neu.meilensteine = [];
     const json = JSON.stringify(neu);
     const gleich = json === letzteJson;
     daten = neu;
@@ -389,9 +421,15 @@ export async function render(container, ctx) {
       const ok = await ladeMitCache(
         s.gruppe_id + ':projekte',
         async function () {
-          const r = await api('listMehrere', { tabellen: ['Projekte', 'ToDos'] }, s.token);
+          const r = await api('listMehrere', {
+            tabellen: ['Projekte', 'ToDos', 'Meilensteine']
+          }, s.token);
           const t = (r && r.tabellen) || {};
-          return { projekte: t.Projekte || [], todos: t.ToDos || [] };
+          return {
+            projekte: t.Projekte || [],
+            todos: t.ToDos || [],
+            meilensteine: t.Meilensteine || []
+          };
         },
         zeigen,
         zuerstCache
@@ -412,6 +450,10 @@ export async function render(container, ctx) {
     if (wahl.value) offen[wahl.value] = true;
     zeichne();
   });
-  ctx.setzeRefresh(function () { return laden(false); });
+  // Während ein Häkchen noch gespeichert wird, wird nicht aktualisiert
+  ctx.setzeRefresh(function () {
+    if (Object.keys(arbeitet).length) return Promise.resolve();
+    return laden(false);
+  });
   await laden(true);
 }
