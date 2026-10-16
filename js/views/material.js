@@ -16,7 +16,8 @@ import { baueDetail, fotoId } from './material-detail.js';
 import { zeigeBuchenDialog } from './material-buchen.js';
 import { zeigeVormerkDialog } from './material-vormerken.js';
 import {
-  ausgeliehen, mitVerfuegbar, auswaehlbar, personenAus, zeitText
+  ausgeliehen, mitVerfuegbar, auswaehlbar, personenAus, zeitText,
+  ausgeliehenProjekt, herkunftText, nachHerkunft
 } from './material-rechnen.js';
 import { istFalsch, SCHEMA } from '../schema.js';
 
@@ -36,7 +37,7 @@ export async function render(container, ctx) {
 
   if (merk.token !== s.token) merk = { token: s.token, modus: null, gewaehlt: {} };
 
-  let daten = { material: [], ausleihe: [] };
+  let daten = { material: [], ausleihe: [], projekte: [] };
   let offenId = null;
   let formOffen = false;
   let modus = merk.modus;        // null | 'mitgenommen' | 'zurueck' | 'vormerken'
@@ -156,10 +157,23 @@ export async function render(container, ctx) {
     modusAnzeige();
     return laden(false);
   }
+  
+  function titelMap() {
+    const t = {};
+    daten.projekte.forEach(function (p) { t[String(p.id)] = String(p.titel); });
+    return t;
+  }
 
+  // Projekte, für die noch ausgeliehen werden darf
+  function offeneProjekte() {
+    return daten.projekte.filter(function (p) {
+      return p.status !== 'erledigt' && p.status !== 'archiviert';
+    }).sort(function (a, b) { return String(a.titel).localeCompare(String(b.titel), 'de'); });
+  }
+  
   function buchenOeffnen() {
     const out = ausgeliehen(daten.ausleihe);
-    const items = daten.material
+    let items = daten.material
       .filter(function (m) { return gewaehlt[m.id]; })
       .map(function (m) { return mitVerfuegbar(m, out); })
       .sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'de'); });
@@ -169,12 +183,19 @@ export async function render(container, ctx) {
       zeigeVormerkDialog({ ctx: ctx, token: s.token, items: items, onFertig: fertig });
       return;
     }
+    // Rückgabe: festes Material pro Herkunft (Projekt oder ohne Projekt) in eigener Zeile
+    if (modus === 'zurueck') {
+      items = nachHerkunft(items, ausgeliehenProjekt(daten.ausleihe), titelMap());
+      if (!items.length) return;
+    }
     zeigeBuchenDialog({
       ctx: ctx,
       token: s.token,
       art: modus,
       items: items,
       personen: personenAus(daten.ausleihe),
+      projekte: offeneProjekte(),
+      proProjekt: function () { return ausgeliehenProjekt(daten.ausleihe); },
       neuLaden: function () { return laden(false); },
       frisch: function () {
         const aktuell = ausgeliehen(daten.ausleihe);
@@ -247,7 +268,7 @@ export async function render(container, ctx) {
       istFalsch(m.aktiv)
         ? el('p', { class: 'fehler', text: 'Dieses Material ist nicht aktiv. Zum Zurückholen: Bearbeiten und „Aktiv“ anhaken.' })
         : null,
-      baueDetail(z, verlauf)
+      baueDetail(z, verlauf, herkunftText(ausgeliehenProjekt(daten.ausleihe)[String(m.id)], titelMap()))
     );
     zeigeDetail(ctx.detail, String(m.name), inhalt, function () { offenId = null; }, neu);
   }
@@ -446,6 +467,7 @@ export async function render(container, ctx) {
   }
 
   function zeigen(neu, meta) {
+    if (!neu.projekte) neu.projekte = [];
     daten = neu;
     kategorienAufbauen();
     if (modus) {
@@ -471,11 +493,11 @@ export async function render(container, ctx) {
       const ok = await ladeMitCache(
         s.gruppe_id + ':material',
         async function () {
-          const r = await Promise.all([
-            api('list', { tabelle: 'Material' }, s.token),
-            api('list', { tabelle: 'Ausleihe' }, s.token)
-          ]);
-          return { material: r[0].zeilen, ausleihe: r[1].zeilen };
+          const r = await api('listMehrere', {
+            tabellen: ['Material', 'Ausleihe', 'Projekte']
+          }, s.token);
+          const t = (r && r.tabellen) || {};
+          return { material: t.Material || [], ausleihe: t.Ausleihe || [], projekte: t.Projekte || [] };
         },
         zeigen,
         zuerstCache
