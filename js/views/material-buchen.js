@@ -104,9 +104,15 @@ export function zeigeBuchenDialog(opt) {
         el('span', { class: 'leise', text: 'davon defekt' }), defekt));
     }
     const info = el('span', { class: 'leise', text: infoText(z, aus) });
+    const vorg = z._vorgemerkt !== undefined
+      ? el('span', {
+        class: 'leise',
+        text: 'Vorgemerkt für dieses Projekt: ' + z._vorgemerkt + (z.einheit ? ' ' + z.einheit : '')
+      })
+      : null;
     const zeile = el('div', { class: 'buch-zeile' },
       el('div', { class: 'buch-text' },
-      el('strong', { text: String(z.name) + (z._herkunft ? ' · ' + z._herkunft : '') }), info),
+      el('strong', { text: String(z.name) + (z._herkunft ? ' · ' + z._herkunft : '') }), info, vorg),
       felder
     );
     return { z: z, feld: feld, defekt: defekt, info: info, zeile: zeile };
