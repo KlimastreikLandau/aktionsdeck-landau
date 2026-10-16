@@ -242,22 +242,22 @@ export async function render(container, ctx) {
         el('span', { class: 'projekt-titel-zeile' },
           el('span', { class: 'projekt-pfeil', 'aria-hidden': 'true', text: '▸' }),
           el('span', { class: 'projekt-titel', text: String(p.titel) }),
-          el('span', { class: 'status-marke status-' + st, text: statusText(p.status) })
+          el('span', { class: 'status-marke status-' + st, text: statusText(p.status) }),
+          el('span', { class: 'projekt-aktionen' },
+            el('button', {
+              class: 'knopf knopf-hell knopf-klein', type: 'button', text: 'Bearbeiten',
+              onclick: function (ev) { ev.preventDefault(); ev.stopPropagation(); formZeigen(p); }
+            }),
+            el('button', {
+              class: 'knopf knopf-gefahr knopf-klein', type: 'button', text: 'Löschen',
+              onclick: function (ev) { ev.preventDefault(); ev.stopPropagation(); loeschen(p); }
+            })
+          )
         ),
         termine ? el('span', { class: 'leise', text: termine }) : null,
         fortschrittsBalken(f.prozent, fortschrittText(f))
       ),
       el('div', { class: 'projekt-body' },
-        el('div', { class: 'detail-knoepfe' },
-          el('button', {
-            class: 'knopf knopf-hell', type: 'button', text: 'Bearbeiten',
-            onclick: function () { formZeigen(p); }
-          }),
-          el('button', {
-            class: 'knopf knopf-gefahr', type: 'button', text: 'Löschen',
-            onclick: function () { loeschen(p); }
-          })
-        ),
         p.beschreibung ? el('p', { class: 'notiz', text: String(p.beschreibung) }) : null,
         paare([
           ['Status', statusText(p.status)],
