@@ -2,6 +2,7 @@
 // Baut ein Formular aus einer Feldliste (siehe js/schema.js).
 // Texte kommen nur über textContent (dom.js), nie über innerHTML.
 // Bei Auswahlfeldern darf "optionen" Texte oder { wert, label } enthalten.
+// Datumsfelder: Ein Klick auf das ganze Feld öffnet den Kalender.
 
 import { el } from './dom.js';
 import { istFalsch } from '../schema.js';
@@ -72,6 +73,12 @@ function eingabe(f, wert, vorschlaege, fotoFn) {
     });
   } else if (f.typ === 'datum') {
     feld = el('input', { class: 'feld', type: 'date', name: f.name });
+    // Ganzes Feld öffnet den Kalender. Geht es nicht, bleibt das Mini-Symbol als Rückfall.
+    feld.addEventListener('click', function () {
+      try {
+        if (typeof feld.showPicker === 'function') feld.showPicker();
+      } catch (e) { /* ignorieren */ }
+    });
   } else {
     feld = el('input', { class: 'feld', type: 'text', name: f.name, maxlength: '200' });
     if (f.typ === 'zahl') feld.setAttribute('inputmode', 'decimal');
