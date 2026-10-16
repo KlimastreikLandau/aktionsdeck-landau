@@ -1231,3 +1231,7 @@ p.notiz.erledigt {
 .hut-zahlen.ueber { color: #b3261e; font-weight: 600; }
 
 .hut-knoepfe { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ---- 0.21.1: Vorlage im Formular ---- */
+.vorlage-zeile { cursor: default; }
+.vorlage-text .vorlage-datum { max-width: 200px; }
