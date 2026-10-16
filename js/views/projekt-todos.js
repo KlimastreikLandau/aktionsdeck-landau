@@ -154,6 +154,32 @@ export function baueTodoTeil(opt) {
   function todoFormZeigen(t, mid) {
     let fenster = null;
     const felder = SCHEMA.ToDos.felder.slice();
+
+    // Hüte dieses Projekts mit ihren Personen
+    const huete = [];
+    (daten().team || []).forEach(function (r) {
+      if (String(r.projekt_id || '').trim() !== pid) return;
+      const h = String(r.zustaendigkeit || '').trim();
+      if (!h) return;
+      let g = huete.find(function (x) { return x.name.toLowerCase() === h.toLowerCase(); });
+      if (!g) { g = { name: h, personen: [] }; huete.push(g); }
+      const p = String(r.person || '').trim();
+      if (p && g.personen.indexOf(p) < 0) g.personen.push(p);
+    });
+    huete.sort(function (a, b) { return a.name.localeCompare(b.name, 'de'); });
+    if (huete.length) {
+      felder.splice(2, 0, {
+        name: '_hut',
+        label: 'Hut (trägt die Person bei „Verantwortlich“ ein)',
+        typ: 'auswahl',
+        optionen: huete.map(function (g) {
+          return {
+            wert: g.name,
+            label: g.name + (g.personen.length ? ' (' + g.personen.join(', ') + ')' : ' (noch frei)')
+          };
+        })
+      });
+    }
     if (ms.length) {
       // Nach "Weitere Informationen" einfügen
       felder.splice(2, 0, {
@@ -169,6 +195,17 @@ export function baueTodoTeil(opt) {
       onSpeichern: function (d) { return todoSpeichern(t, d, fenster); },
       onAbbrechen: function () { fenster.schliessen(); }
     });
+
+    // Hut gewählt: Person(en) bei "Verantwortlich" eintragen (danach von Hand änderbar)
+    const hutWahl = form.querySelector('select[name="_hut"]');
+    const wer = form.querySelector('input[name="verantwortlich"]');
+    if (hutWahl && wer) {
+      hutWahl.addEventListener('change', function () {
+        const g = huete.find(function (x) { return x.name === hutWahl.value; });
+        if (g && g.personen.length) wer.value = g.personen.join(', ');
+      });
+    }
+
     fenster = fensterMitLoeschen(
       t ? 'ToDo bearbeiten' : 'Neues ToDo',
       form,
@@ -177,6 +214,7 @@ export function baueTodoTeil(opt) {
   }
 
   async function todoSpeichern(t, d, fenster) {
+    delete d._hut;
     d.projekt_id = pid;
     try {
       if (!t) {
@@ -217,109 +255,103 @@ export function baueTodoTeil(opt) {
     }
   }
 
-  // ---- Meilenstein: Vorlagenwahl (erster Schritt bei "+ Meilenstein") ----
+    // ---- Meilenstein: Formular (m = null heißt neu). Oben ein Dropdown "Vorlage". ----
 
-  function vorlagenWahlZeigen() {
+  function meilensteinFormZeigen(m) {
     let fenster = null;
-    const knoepfe = el('div', { class: 'mehr-knoepfe' },
-      el('button', {
-        class: 'knopf', type: 'button', text: 'Ohne Vorlage',
-        onclick: function () { fenster.schliessen(); meilensteinFormZeigen(null, null); }
-      })
-    );
-    VORLAGEN.forEach(function (v) {
-      knoepfe.append(el('button', {
-        class: 'knopf knopf-hell', type: 'button',
-        text: v.name + ' (' + v.schritte.length + ' ToDos)',
-        onclick: function () { fenster.schliessen(); meilensteinFormZeigen(null, v); }
-      }));
-    });
-    knoepfe.append(el('button', {
-      class: 'knopf knopf-hell', type: 'button', text: 'Abbrechen',
-      onclick: function () { fenster.schliessen(); }
-    }));
-    fenster = zeigeFenster('Neuer Meilenstein', el('div', null,
-      el('p', {
-        class: 'leise',
-        text: 'Wähle eine Vorlage oder starte leer. Die ToDos der Vorlage kannst du im nächsten Schritt abwählen.'
-      }),
-      knoepfe
-    ));
-  }
-
-  // Häkchenliste mit den ToDos der Vorlage. Fristen werden aus dem Datum des Meilensteins gerechnet.
-  function vorlagenAuswahl(vorlage, datumFeld) {
-    const zeilen = vorlage.schritte.map(function (sch) {
-      const cb = el('input', { type: 'checkbox', class: 'auswahl-box', 'aria-label': sch.text });
-      cb.checked = true;
-      const frist = el('span', { class: 'leise' });
-      const zeile = el('label', { class: 'vorlage-zeile' },
-        cb,
-        el('span', { class: 'vorlage-text' }, el('strong', { text: sch.text }), frist)
-      );
-      return { sch: sch, cb: cb, frist: frist, zeile: zeile };
-    });
-
-    function fristen() {
-      const d = datumFeld ? datumFeld.value : '';
-      zeilen.forEach(function (z) {
-        const fa = faelligAus(d, z.sch.tage_vorher);
-        z.frist.textContent = fa ? 'Fällig ' + datumText(fa) : 'Ohne Fälligkeit (trage oben ein Datum ein)';
+    let zeilen = [];
+    const felder = SCHEMA.Meilensteine.felder.slice();
+    if (!m) {
+      felder.unshift({
+        name: '_vorlage',
+        label: 'Vorlage (legt ToDos gleich mit an)',
+        typ: 'auswahl',
+        optionen: VORLAGEN.map(function (v) {
+          return { wert: v.id, label: v.name + ' (' + v.schritte.length + ' ToDos)' };
+        })
       });
     }
-    if (datumFeld) {
-      datumFeld.addEventListener('input', fristen);
-      datumFeld.addEventListener('change', fristen);
-    }
-    fristen();
-
-    const knoten = el('div', { class: 'vorlage-liste' },
-      el('p', {
-        class: 'leise',
-        text: 'ToDos aus der Vorlage „' + vorlage.name + '“. Haken weg = dieses ToDo wird nicht angelegt. ' +
-          'Die Fälligkeit wird vom Datum des Meilensteins zurückgerechnet.'
-      }),
-      ...zeilen.map(function (z) { return z.zeile; })
-    );
-
-    return {
-      knoten: knoten,
-      gewaehlt: function () {
-        return zeilen.filter(function (z) { return z.cb.checked; })
-          .map(function (z) { return z.sch; });
-      }
-    };
-  }
-
-  // ---- Meilenstein: Formular (m = null heißt neu, vorlage = gewählte Vorlage oder null) ----
-
-  function meilensteinFormZeigen(m, vorlage) {
-    let fenster = null;
-    let auswahl = null;
-    const start = m || (vorlage ? { titel: vorlage.name } : {});
-    const form = baueFormular(SCHEMA.Meilensteine.felder, start, {
-      speichernText: m ? 'Speichern' : (vorlage ? 'Anlegen mit ToDos' : 'Anlegen'),
+    const form = baueFormular(felder, m || {}, {
+      speichernText: m ? 'Speichern' : 'Anlegen',
       vorschlaege: { verantwortlich: personen() },
-      onSpeichern: function (d) { return meilensteinSpeichern(m, d, fenster, auswahl); },
+      onSpeichern: function (d) {
+        const schritte = zeilen.filter(function (z) { return z.cb.checked; })
+          .map(function (z) {
+            return { text: z.sch.text, details: z.sch.details || '', faellig_am: z.datum.value };
+          });
+        delete d._vorlage;
+        return meilensteinSpeichern(m, d, fenster, schritte);
+      },
       onAbbrechen: function () { fenster.schliessen(); }
     });
-    if (!m && vorlage) {
-      auswahl = vorlagenAuswahl(vorlage, form.querySelector('input[name="datum"]'));
-      form.insertBefore(auswahl.knoten, form.querySelector('p.fehler'));
+
+    if (!m) {
+      const sel = form.querySelector('select[name="_vorlage"]');
+      const titel = form.querySelector('input[name="titel"]');
+      const datum = form.querySelector('input[name="datum"]');
+      const liste = el('div', { class: 'vorlage-liste' });
+      liste.hidden = true;
+      form.insertBefore(liste, form.querySelector('p.fehler'));
+      let vorher = '';
+
+      // Meilenstein-Datum geändert: nur Fristen neu rechnen, die du nicht selbst geändert hast
+      function fristen() {
+        zeilen.forEach(function (z) {
+          if (!z.manuell) z.datum.value = faelligAus(datum.value, z.sch.tage_vorher);
+        });
+      }
+
+      function bauen() {
+        const v = VORLAGEN.find(function (x) { return x.id === sel.value; });
+        liste.textContent = '';
+        zeilen = [];
+        liste.hidden = !v;
+        if (!v) return;
+        if (!titel.value.trim() || titel.value === vorher) titel.value = v.name;
+        vorher = v.name;
+        liste.append(el('p', {
+          class: 'leise',
+          text: 'Haken weg = ToDo wird nicht angelegt. Die Fälligkeit wird vom Datum des Meilensteins ' +
+            'zurückgerechnet und kann hier geändert werden.'
+        }));
+        v.schritte.forEach(function (sch) {
+          const cb = el('input', { type: 'checkbox', class: 'auswahl-box', 'aria-label': sch.text });
+          cb.checked = true;
+          const dat = el('input', {
+            class: 'feld vorlage-datum', type: 'date', 'aria-label': 'Fällig: ' + sch.text
+          });
+          dat.value = faelligAus(datum.value, sch.tage_vorher);
+          const z = { sch: sch, cb: cb, datum: dat, manuell: false };
+          dat.addEventListener('input', function () { z.manuell = true; });
+          dat.addEventListener('click', function () {
+            try { if (typeof dat.showPicker === 'function') dat.showPicker(); } catch (e) { /* ignorieren */ }
+          });
+          zeilen.push(z);
+          liste.append(el('div', { class: 'vorlage-zeile' },
+            cb,
+            el('div', { class: 'vorlage-text' }, el('strong', { text: sch.text }), dat)
+          ));
+        });
+      }
+
+      sel.addEventListener('change', bauen);
+      datum.addEventListener('input', fristen);
+      datum.addEventListener('change', fristen);
     }
+
     fenster = fensterMitLoeschen(
-      m ? 'Meilenstein bearbeiten' : (vorlage ? 'Neuer Meilenstein: ' + vorlage.name : 'Neuer Meilenstein'),
+      m ? 'Meilenstein bearbeiten' : 'Neuer Meilenstein',
       form,
       m ? function () { meilensteinLoeschen(m, fenster); } : null
     );
   }
-
-  async function meilensteinSpeichern(m, d, fenster, auswahl) {
+  
+  async function meilensteinSpeichern(m, d, fenster, schritte) {
     d.projekt_id = pid;
     try {
       if (!m) {
         const o = await api('create', { tabelle: 'Meilensteine', daten: d }, token);
-        const schritte = auswahl ? auswahl.gewaehlt() : [];
+        schritte = schritte || [];
         if (schritte.length) {
           const liste = schritte.map(function (sch) {
             return {
@@ -327,7 +359,7 @@ export function baueTodoTeil(opt) {
               meilenstein_id: String(o.id),
               text: sch.text,
               details: sch.details || '',
-              faellig_am: faelligAus(d.datum, sch.tage_vorher),
+              faellig_am: sch.faellig_am || '',
               prioritaet: 'normal'
             };
           });
@@ -493,7 +525,7 @@ export function baueTodoTeil(opt) {
       }),
       el('button', {
         class: 'knopf knopf-hell', type: 'button', text: '+ Meilenstein',
-        onclick: function () { vorlagenWahlZeigen(); }
+        onclick: function () { meilensteinFormZeigen(null); }
       })
     )
   );
