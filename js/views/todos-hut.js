@@ -62,18 +62,22 @@ function weitergeben(o) {
 
 export function huetKnoepfe(o) {
   const wer = String(o.t.verantwortlich || '').trim();
+  const ich = getName();
+  const meins = !!ich && wer.toLowerCase() === ich.toLowerCase();
   const box = el('div', { class: 'hut-knoepfe' });
 
-  if (!wer) {
+  // Übernehmen: bei freien Hüten und bei ToDos anderer (nicht bei den eigenen)
+  if (!meins) {
     box.append(el('button', {
       class: 'knopf knopf-klein', type: 'button', text: 'Hut übernehmen',
       onclick: function () {
-        const ich = getName();
         if (!ich) { toast('Bitte zuerst deinen Namen eintragen (Name ändern).'); return; }
         setzen(o, ich, 'Du hast den Hut übernommen.');
       }
     }));
-  } else {
+  }
+  // Weitergeben: nur wenn schon jemand verantwortlich ist
+  if (wer) {
     box.append(el('button', {
       class: 'knopf knopf-hell knopf-klein', type: 'button', text: 'Weitergeben',
       onclick: function () { weitergeben(o); }
