@@ -69,3 +69,48 @@ export function personenAus(ausleihen) {
 export function zeitText(iso) {
   return new Date(iso).toLocaleString('de-DE');
 }
+
+// { materialId: { projektId: menge } }, projektId '' = ohne Projekt (wie bAusgeliehenProjekt im Skript)
+export function ausgeliehenProjekt(ausleihen) {
+  const m = {};
+  ausleihen.forEach(function (a) {
+    const id = String(a.material_id);
+    const pid = String(a.projekt_id === undefined || a.projekt_id === null ? '' : a.projekt_id).trim();
+    let d;
+    if (a.art === 'mitgenommen') d = zahl(a.anzahl);
+    else if (a.art === 'zurueck' || a.art === 'defekt') d = -zahl(a.anzahl);
+    else return;
+    if (!m[id]) m[id] = {};
+    m[id][pid] = runden((m[id][pid] || 0) + d);
+  });
+  return m;
+}
+
+// "Demo: 2, ohne Projekt: 1". Leer, wenn nichts mit Projekt ausgeliehen ist.
+export function herkunftText(o, titel) {
+  const ids = Object.keys(o || {}).filter(function (p) { return o[p] > 0; });
+  if (!ids.some(function (p) { return p !== ''; })) return '';
+  return ids.map(function (p) {
+    return (p ? (titel[p] || 'Projekt') : 'ohne Projekt') + ': ' + o[p];
+  }).join(', ');
+}
+
+// Rückgabe: festes Material wird pro Herkunft (Projekt oder "ohne Projekt") zu einer eigenen Zeile.
+export function nachHerkunft(items, pp, titel) {
+  const liste = [];
+  const sk = function (p) { return p ? (titel[p] || '?') : '~'; };
+  items.forEach(function (z) {
+    if (z._verbrauch) { liste.push(z); return; }
+    const o = pp[String(z.id)] || {};
+    Object.keys(o).filter(function (p) { return o[p] > 0; })
+      .sort(function (a, b) { return sk(a).localeCompare(sk(b), 'de'); })
+      .forEach(function (p) {
+        liste.push(Object.assign({}, z, {
+          _pid: p,
+          _draussen: o[p],
+          _herkunft: p ? 'Projekt ' + (titel[p] || '?') : 'ohne Projekt'
+        }));
+      });
+  });
+  return liste;
+}
