@@ -17,7 +17,7 @@ import { faelligStatus, istMeins } from './todos-rechnen.js';
 
 const FELDER = [
   { name: 'person', label: 'Person (leer lassen = Hut ist noch frei)', typ: 'text' },
-  { name: 'zustaendigkeit', label: 'Hut (Zuständigkeit), z. B. Presse', typ: 'text' }
+  { name: 'zustaendigkeit', label: 'Hut (Zuständigkeit), z. B. Presse', typ: 'text', pflicht: true }
 ];
 
 function txt(v) {
@@ -156,7 +156,7 @@ export function baueTeamTeil(opt) {
       onAbbrechen: function () { fenster.schliessen(); }
     });
     fenster = formFenster(
-      r ? 'Team bearbeiten' : 'Person oder Hut hinzufügen',
+      r ? 'Hut bearbeiten' : 'Hut hinzufügen',
       form,
       r ? function () { teamLoeschen(r, fenster); } : null
     );
@@ -310,17 +310,17 @@ export function baueTeamTeil(opt) {
   const body = el('div', { class: 'projekt-teil-body' },
     el('div', { class: 'teil-aktionen' },
       el('button', {
-        class: 'knopf', type: 'button', text: '+ Person oder Hut',
+        class: 'knopf', type: 'button', text: '+ Hut',
         onclick: function () { teamFormZeigen(null, null); }
       })
     )
   );
 
-  if (!huete.length && !ohneHut.length && !weitere.length) {
+  if (!huete.length) {
     body.append(el('p', {
       class: 'leise',
-      text: 'Noch niemand im Team und noch kein Hut. Mit „+ Person oder Hut“ geht es los. ' +
-        'Ein Hut ohne Person steht als „noch frei“ da, jede Person kann ihn selbst übernehmen.'
+      text: 'Noch kein Hut. Mit „+ Hut“ geht es los. Ein Hut ohne Person steht als „noch frei“ da, ' +
+        'jede Person kann ihn selbst übernehmen.'
     }));
   }
 
@@ -329,30 +329,7 @@ export function baueTeamTeil(opt) {
     huete.forEach(function (g) { body.append(hutBlock(g)); });
   }
 
-  if (ohneHut.length) {
-    body.append(el('h3', { class: 'teil-titel-klein', text: 'Im Team ohne Hut' }));
-    const box = el('section', { class: 'hut' });
-    ohneHut.forEach(function (r) { box.append(personZeile(r)); });
-    body.append(box);
-  }
 
-  if (weitere.length) {
-    body.append(el('h3', { class: 'teil-titel-klein', text: 'Weitere mit ToDos (ohne Hut)' }));
-    const box = el('section', { class: 'hut' });
-    weitere.forEach(function (n) {
-      const z = zahlen(n);
-      box.append(el('div', { class: 'hut-person' },
-        el('div', { class: 'hut-person-text' },
-          el('strong', { text: n }),
-          el('span', { class: 'leise hut-zahlen' + (z.ueber ? ' ueber' : ''), text: zahlenText(z) })
-        ),
-        el('div', { class: 'hut-knoepfe' },
-          knopf('Zum Team', true, function () { teamFormZeigen(null, { person: n }); })
-        )
-      ));
-    });
-    body.append(box);
-  }
 
   const kurzInfo = personenAnzahl + (personenAnzahl === 1 ? ' Person' : ' Personen') +
     (freieHuete ? ' · ' + freieHuete + (freieHuete === 1 ? ' Hut frei' : ' Hüte frei') : '');
