@@ -281,7 +281,7 @@ export function baueMaterialTeil(opt) {
       if (!auswaehlbar(z, 'mitgenommen')) return;
       let v = zahl(r.menge) - (z._verbrauch ? 0 : draussen(r));
       if (z._verfuegbar !== '') v = Math.min(v, z._verfuegbar);
-      items.push(Object.assign({}, z, { _vorgabe: Math.max(0, runden(v)) }));
+      items.push(Object.assign({}, z, { _vorgabe: Math.max(0, runden(v)), _vorgemerkt: zahl(r.menge) }));
     });
     if (!items.length) {
       toast('Nichts zum Ausleihen: Es fehlt Material aus dem Bestand oder nichts ist verfügbar.');
