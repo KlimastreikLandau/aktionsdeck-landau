@@ -2,7 +2,8 @@
 // Reiter Projekte: oben die Übersicht (mit Fortschrittsbalken), darunter ein aufklappbarer Block je Projekt.
 // Laufende Projekte (Aktiv) stehen oben, Projekte in Planung getrennt darunter.
 // Anlegen, Bearbeiten und Löschen laufen in kleinen Fenstern. Löschen nimmt alles Zugehörige mit.
-// Im Block: Teil "ToDos" mit Meilensteinen (projekt-todos.js). Weitere Teile folgen in 4.3 bis 4.6.
+// Im Block: Teil "Team und Hüte" (projekt-team.js) und Teil "ToDos" mit Meilensteinen (projekt-todos.js).
+// Weitere Teile folgen in 4.4 bis 4.6.
 // Die Auswahl (aufgeklappte Projekte und Teile) bleibt beim Reiterwechsel erhalten.
 
 import { el, leeren } from '../ui/dom.js';
@@ -19,9 +20,10 @@ import {
   statusText, istAbgeschlossen, fortschritt, fortschrittText, sortiereProjekte, terminText
 } from './projekt-rechnen.js';
 import { baueTodoTeil } from './projekt-todos.js';
+import { baueTeamTeil } from './projekt-team.js';
 
 // Bleibt beim Reiterwechsel erhalten. Neue Anmeldung (anderes Token) = leer.
-// offen: aufgeklappte Projekte. teile: aufgeklappte Teile ("<id>:todos").
+// offen: aufgeklappte Projekte. teile: aufgeklappte Teile ("<id>:todos", "<id>:team").
 let merk = { token: '', offen: {}, teile: {} };
 
 // Was beim Löschen eines Projekts mitgelöscht wird (Tab, Anzeigename)
@@ -64,7 +66,7 @@ export async function render(container, ctx) {
   if (merk.token !== s.token) merk = { token: s.token, offen: {}, teile: {} };
   const offen = merk.offen;
 
-  let daten = { projekte: [], todos: [], meilensteine: [] };
+  let daten = { projekte: [], todos: [], meilensteine: [], team: [] };
   let archivModus = false;
   let sprungId = ctx.unter || '';   // von der Start-Kachel: dieses Projekt aufklappen
   let letzteJson = '';
@@ -218,6 +220,20 @@ export async function render(container, ctx) {
       else delete offen[id];
     });
 
+    const teamKey = id + ':team';
+    const teamTeil = baueTeamTeil({
+      ctx: ctx,
+      token: s.token,
+      projekt: p,
+      holeDaten: function () { return daten; },
+      offen: !!merk.teile[teamKey],
+      beiToggle: function (o) {
+        if (o) merk.teile[teamKey] = true;
+        else delete merk.teile[teamKey];
+      },
+      neuLaden: function () { return laden(false); }
+    });
+
     const teilKey = id + ':todos';
     const todoTeil = baueTodoTeil({
       ctx: ctx,
@@ -266,10 +282,11 @@ export async function render(container, ctx) {
           ['Deadline', datumText(p.deadline)],
           ['Geplantes Budget', euro(p.budget_geplant)]
         ]),
+        teamTeil,
         todoTeil,
         el('p', {
           class: 'leise',
-          text: 'Team, Material, Finanzen und Protokoll kommen in den nächsten Schritten hier dazu.'
+          text: 'Material, Finanzen und Protokoll kommen in den nächsten Schritten hier dazu.'
         })
       )
     );
@@ -418,10 +435,11 @@ export async function render(container, ctx) {
   function zeigen(neu, m) {
     offline = false;
     meta = m;
-    // Ältere Zwischenspeicher kennen die Meilensteine noch nicht
+    // Ältere Zwischenspeicher kennen Meilensteine und Team noch nicht
     if (!neu.projekte) neu.projekte = [];
     if (!neu.todos) neu.todos = [];
     if (!neu.meilensteine) neu.meilensteine = [];
+    if (!neu.team) neu.team = [];
     const json = JSON.stringify(neu);
     const gleich = json === letzteJson;
     daten = neu;
@@ -455,13 +473,14 @@ export async function render(container, ctx) {
         s.gruppe_id + ':projekte',
         async function () {
           const r = await api('listMehrere', {
-            tabellen: ['Projekte', 'ToDos', 'Meilensteine']
+            tabellen: ['Projekte', 'ToDos', 'Meilensteine', 'Projekt_Team']
           }, s.token);
           const t = (r && r.tabellen) || {};
           return {
             projekte: t.Projekte || [],
             todos: t.ToDos || [],
-            meilensteine: t.Meilensteine || []
+            meilensteine: t.Meilensteine || [],
+            team: t.Projekt_Team || []
           };
         },
         zeigen,
