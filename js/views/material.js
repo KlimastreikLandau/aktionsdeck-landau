@@ -5,7 +5,7 @@
 
 import { el, leeren } from '../ui/dom.js';
 import { api } from '../api.js';
-import { ladeMitCache } from '../cache.js';
+import { ladeMitCache, cacheSet } from '../cache.js';
 import { features } from '../config.js';
 import { zeigeListe } from '../ui/table.js';
 import { zeigeDetail, schliesseDetail } from '../ui/detail.js';
@@ -152,6 +152,7 @@ export async function render(container, ctx) {
   }
 
   function fertig() {
+    cacheSet(s.gruppe_id + ':projekte', null); // Projekte sollen nicht den alten Stand zeigen
     modus = null;
     gewaehlt = {};
     modusAnzeige();
