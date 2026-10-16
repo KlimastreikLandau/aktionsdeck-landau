@@ -90,7 +90,7 @@ function verlaufListe(verlauf) {
 
 // m = Material aus mitVerfuegbar (mit _verfuegbar, _draussen, _verbrauch)
 // verlauf = Ausleihe-Zeilen dieses Materials
-export function baueDetail(m, verlauf) {
+export function baueDetail(m, verlauf, herkunft) {
   const einheit = m.einheit ? ' ' + m.einheit : '';
   const kat = [m.kategorie, m.unterkategorie].filter(Boolean).join(' › ');
   const hat = m.anzahl !== '' && m.anzahl !== undefined && m.anzahl !== null;
@@ -104,7 +104,7 @@ export function baueDetail(m, verlauf) {
   ];
   if (!m._verbrauch) {
     zeilen.push(['Verfügbar', m._verfuegbar === '' ? '' : m._verfuegbar + einheit]);
-    zeilen.push(['Gerade ausgeliehen', m._draussen + einheit]);
+    zeilen.push(['Gerade ausgeliehen', m._draussen + einheit + (herkunft ? ' (' + herkunft + ')' : '')]);
   }
   if (letzte) {
     zeilen.push(['Zuletzt mitgenommen',
