@@ -1235,3 +1235,6 @@ p.notiz.erledigt {
 /* ---- 0.21.1: Vorlage im Formular ---- */
 .vorlage-zeile { cursor: default; }
 .vorlage-text .vorlage-datum { max-width: 200px; }
+
+/* ---- 0.21.2: Hüte im Teil ToDos ---- */
+.hut-bereich { margin: 4px 0 12px; }
