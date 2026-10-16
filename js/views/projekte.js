@@ -22,6 +22,7 @@ import {
 import { baueTodoTeil } from './projekt-todos.js';
 import { baueMaterialTeil } from './projekt-material.js';
 import { baueFinanzTeil } from './projekt-finanzen.js';
+import { baueLearningTeil, baueLearningUebersicht } from './projekt-learnings.js';
 
 // Bleibt beim Reiterwechsel erhalten. Neue Anmeldung (anderes Token) = leer.
 // offen: aufgeklappte Projekte. teile: aufgeklappte Teile ("<id>:todos", "<id>:team").
@@ -67,7 +68,7 @@ export async function render(container, ctx) {
   if (merk.token !== s.token) merk = { token: s.token, offen: {}, teile: {} };
   const offen = merk.offen;
 
-  let daten = { projekte: [], todos: [], meilensteine: [], team: [], material: [], ausleihe: [], pm: [], fin: [] };
+  let daten = { projekte: [], todos: [], meilensteine: [], team: [], material: [], ausleihe: [], pm: [], fin: [], learnings: [] };
   let archivModus = false;
   let sprungId = ctx.unter || '';   // von der Start-Kachel: dieses Projekt aufklappen
   let letzteJson = '';
@@ -83,6 +84,7 @@ export async function render(container, ctx) {
   const wahl = el('select', { class: 'feld', 'aria-label': 'Projekt anzeigen' });
   const uebersicht = el('section', { class: 'karte projekt-uebersicht' });
   const box = el('div');
+  const learnBox = el('div');
 
   const archivKnopf = el('button', {
     class: 'knopf knopf-hell', type: 'button', text: 'Archiv',
@@ -99,6 +101,7 @@ export async function render(container, ctx) {
       el('div', { class: 'kopf-knoepfe' }, archivKnopf, neuKnopf)
     ),
     uebersicht,
+    learnBox,
     el('div', { class: 'filterzeile filter-projekte' }, suche, wahl),
     status,
     box
@@ -190,7 +193,9 @@ export async function render(container, ctx) {
     );
   }
 
-  function uebersichtZeichnen(liste) {
+  function uebersichtZeichnen(alle) {
+    // Planung steht nicht in der Übersicht, nur unten im Aufklapper
+    const liste = archivModus ? alle : alle.filter(function (p) { return !istPlanung(p); });
     leeren(uebersicht);
     uebersicht.append(el('h2', { text: archivModus ? 'Archiv' : 'Laufende Projekte' }));
     if (!liste.length) {
@@ -199,15 +204,7 @@ export async function render(container, ctx) {
       uebersicht.append(el('p', { class: 'leise', text: t }));
       return;
     }
-    gruppenVon(liste).forEach(function (g) {
-      if (g.titel) {
-        uebersicht.append(el('h3', {
-          class: 'projekt-gruppe-titel',
-          text: g.titel + ' (' + g.liste.length + ')'
-        }));
-      }
-      g.liste.forEach(function (p) { uebersicht.append(uebersichtZeile(p)); });
-    });
+    liste.forEach(function (p) { uebersicht.append(uebersichtZeile(p)); });
   }
 
   function block(p) {
@@ -271,6 +268,19 @@ export async function render(container, ctx) {
       neuLaden: function () { return laden(false); },
       merken: merken
     });
+    const learnKey = id + ':learnings';
+    const learnTeil = baueLearningTeil({
+      ctx: ctx,
+      token: s.token,
+      projekt: p,
+      holeDaten: function () { return daten; },
+      offen: !!merk.teile[learnKey],
+      beiToggle: function (o) {
+        if (o) merk.teile[learnKey] = true;
+        else delete merk.teile[learnKey];
+      },
+      neuLaden: function () { return laden(false); }
+    });
     const termine = terminText(p);
     d.append(
       el('summary', null,
@@ -313,7 +323,8 @@ export async function render(container, ctx) {
         ]),
         todoTeil,
         materialTeil,
-        finanzTeil
+        finanzTeil,
+        learnTeil
       )
     );
     bloecke[id] = d;
@@ -337,6 +348,15 @@ export async function render(container, ctx) {
       : 'Archiv' + (abgeschlossen ? ' (' + abgeschlossen + ')' : '');
 
     uebersichtZeichnen(liste);
+    leeren(learnBox);
+    learnBox.append(baueLearningUebersicht({
+      ctx: ctx,
+      token: s.token,
+      holeDaten: function () { return daten; },
+      offen: !!merk.learnAuf,
+      beiToggle: function (o) { merk.learnAuf = o; },
+      neuLaden: function () { return laden(false); }
+    }));
 
     leeren(box);
     Object.keys(bloecke).forEach(function (k) { delete bloecke[k]; });
@@ -547,6 +567,7 @@ export async function render(container, ctx) {
     if (!neu.ausleihe) neu.ausleihe = [];
     if (!neu.pm) neu.pm = [];
     if (!neu.fin) neu.fin = [];
+    if (!neu.learnings) neu.learnings = [];
     const json = JSON.stringify(neu);
     const gleich = json === letzteJson;
     daten = neu;
@@ -580,8 +601,7 @@ export async function render(container, ctx) {
         s.gruppe_id + ':projekte',
         async function () {
           const r = await api('listMehrere', {
-            tabellen: ['Projekte', 'ToDos', 'Meilensteine', 'Material', 'Ausleihe', 'Projekt_Material', 'Finanzen']
-          }, s.token);
+            tabellen: ['Projekte', 'ToDos', 'Meilensteine', 'Material', 'Ausleihe', 'Projekt_Material', 'Finanzen', 'Learnings']
           const t = (r && r.tabellen) || {};
           return {
             projekte: t.Projekte || [],
@@ -590,7 +610,8 @@ export async function render(container, ctx) {
             material: t.Material || [],
             ausleihe: t.Ausleihe || [],
             pm: t.Projekt_Material || [],
-            fin: t.Finanzen || []
+            fin: t.Finanzen || [],
+            learnings: t.Learnings || []
           };
         },
         zeigen,
