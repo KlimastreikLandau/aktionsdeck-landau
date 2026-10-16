@@ -21,6 +21,22 @@ function zuZahl(t) {
   return isNaN(n) ? NaN : n;
 }
 
+// Komplett zurückgegebenes Material aus der Projekt-Materialliste (Vormerkung) löschen
+async function vormerkungLoeschen(token, liste) {
+  if (!liste.length) return;
+  try {
+    const r = await api('list', { tabelle: 'Projekt_Material' }, token);
+    const weg = r.zeilen.filter(function (z) {
+      return liste.some(function (a) {
+        return String(z.projekt_id) === a.pid && String(z.material_id) === a.mid;
+      });
+    });
+    await Promise.all(weg.map(function (z) {
+      return api('delete', { tabelle: 'Projekt_Material', id: z.id }, token).catch(function () { return null; });
+    }));
+  } catch (e) { /* ignorieren: die Vormerkung bleibt dann stehen */ }
+}
+
 function infoText(z, aus) {
   const e = z.einheit ? ' ' + z.einheit : '';
   if (aus) {
@@ -125,7 +141,7 @@ export function zeigeBuchenDialog(opt) {
     ),
     projektWahl
       ? el('label', { class: 'formfeld' },
-        el('span', { class: 'formlabel', text: 'Für Projekt (freiwillig)' }), projektWahl)
+        el('span', { class: 'formlabel', text: 'Für Projekt' }), projektWahl)
       : null,
     el('div', { class: 'buch-liste' }, ...reihen.map(function (r) { return r.zeile; })),
     fehler,
@@ -163,6 +179,7 @@ export function zeigeBuchenDialog(opt) {
     if (!name) { meldung('Bitte eine Person angeben.', person); return; }
 
     const positionen = [];
+    const aufraeumen = [];
     for (let i = 0; i < reihen.length; i++) {
       const r = reihen[i];
       const z = r.z;
@@ -188,6 +205,7 @@ export function zeigeBuchenDialog(opt) {
       if (z._pid !== undefined) pos.projekt_id = z._pid;
       else if (aus) pos.projekt_id = opt.projektId || (projektWahl ? projektWahl.value : '');
       positionen.push(pos);
+      if (!aus && z._pid && n >= z._draussen) aufraeumen.push({ pid: String(z._pid), mid: String(z.id) });
     }
     if (!positionen.length) {
       meldung('Bitte bei mindestens einem Material eine Anzahl eintragen.', reihen[0].feld);
@@ -221,9 +239,12 @@ export function zeigeBuchenDialog(opt) {
     const k = positionen.length;
     const was = k === 1 ? '1 Material' : k + ' Materialien';
     toast(was + (aus ? ' ausgebucht.' : ' zurückgebucht.'));
+    await vormerkungLoeschen(opt.token, aufraeumen);
     await opt.onFertig();
   });
 
   document.body.append(hintergrund);
+  });
+
   (person.value ? reihen[0].feld : person).focus();
 }
