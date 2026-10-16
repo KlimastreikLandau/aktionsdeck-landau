@@ -307,7 +307,10 @@ export function baueMaterialTeil(opt) {
   // ---- Zeichnen ----
 
   function zeile(r) {
-    const fertig = istWahr(r.beschafft);
+    // Komplett für dieses Projekt ausgeliehen = auch "fertig" (grau, durchgestrichen)
+    const dr0 = r.material_id ? draussen(r) : 0;
+    const komplett = dr0 > 0 && dr0 >= zahl(r.menge);
+    const fertig = istWahr(r.beschafft) || komplett;
     const m = r.material_id ? matById[String(r.material_id)] : null;
     const z = m ? mitVerfuegbar(m, out) : null;
     const einheit = m && m.einheit ? ' ' + m.einheit : '';
@@ -325,6 +328,7 @@ export function baueMaterialTeil(opt) {
       type: 'checkbox', class: 'auswahl-box', 'aria-label': String(r.name) + ' beschafft'
     });
     cb.checked = fertig;
+    cb.disabled = komplett && !istWahr(r.beschafft);
     cb.addEventListener('change', function () { beschafftSetzen(r, cb.checked); });
 
     return el('li', { class: 'dash-zeile' + (fertig ? ' erledigt' : '') },
