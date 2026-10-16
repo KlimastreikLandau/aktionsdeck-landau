@@ -48,7 +48,13 @@ export async function zeigeVormerkDialog(opt) {
   projekte.forEach(function (p) {
     wahl.append(el('option', { value: String(p.id), text: String(p.titel) }));
   });
-
+  
+  // Aus einem Projekt heraus aufgerufen: Projekt ist fest vorgegeben
+  if (opt.projektId) {
+    wahl.value = String(opt.projektId);
+    wahl.disabled = true;
+  }
+  
   function bestehend(materialId) {
     return vorgemerkt.find(function (v) {
       return String(v.projekt_id) === wahl.value && String(v.material_id) === String(materialId);
