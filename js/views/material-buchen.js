@@ -52,12 +52,23 @@ export function zeigeBuchenDialog(opt) {
     class: 'feld', type: 'text', maxlength: '200', 'aria-label': 'Notiz', placeholder: 'Notiz (freiwillig)'
   });
 
+  // "Für Projekt" (nur beim Ausbuchen, freiwillig). opt.projektId = fest vorgegeben.
+  let projektWahl = null;
+  if (aus && !opt.projektId && opt.projekte && opt.projekte.length) {
+    projektWahl = el('select', { class: 'feld', 'aria-label': 'Für Projekt' },
+      el('option', { value: '', text: 'Ohne Projekt' }));
+    opt.projekte.forEach(function (p) {
+      projektWahl.append(el('option', { value: String(p.id), text: String(p.titel) }));
+    });
+  }
+  
   const reihen = opt.items.map(function (z) {
     const feld = el('input', {
       class: 'feld mengen-feld', type: 'text', inputmode: 'decimal',
       'aria-label': (aus ? 'Anzahl ' : 'Anzahl zurück ') + String(z.name)
     });
-    feld.value = aus ? '1' : (z._verbrauch ? '' : String(z._draussen));
+    if (z._vorgabe !== undefined) feld.value = String(z._vorgabe);
+    else feld.value = aus ? '1' : (z._verbrauch ? '' : String(z._draussen));
 
     let defekt = null;
     if (!aus && !z._verbrauch) {
@@ -78,7 +89,8 @@ export function zeigeBuchenDialog(opt) {
     }
     const info = el('span', { class: 'leise', text: infoText(z, aus) });
     const zeile = el('div', { class: 'buch-zeile' },
-      el('div', { class: 'buch-text' }, el('strong', { text: String(z.name) }), info),
+      el('div', { class: 'buch-text' },
+      el('strong', { text: String(z.name) + (z._herkunft ? ' · ' + z._herkunft : '') }), info),
       felder
     );
     return { z: z, feld: feld, defekt: defekt, info: info, zeile: zeile };
@@ -88,11 +100,17 @@ export function zeigeBuchenDialog(opt) {
   function aktualisieren() {
     if (!opt.frisch) return;
     const neu = opt.frisch();
+    const pp = opt.proProjekt ? opt.proProjekt() : {};
     reihen.forEach(function (r) {
       const n = neu.find(function (x) { return String(x.id) === String(r.z.id); });
       if (!n) return;
-      r.z = n;
-      r.info.textContent = infoText(n, aus);
+      if (r.z._pid !== undefined) {
+        const o = (pp[String(n.id)] || {})[r.z._pid] || 0;
+        r.z = Object.assign({}, n, { _pid: r.z._pid, _herkunft: r.z._herkunft, _draussen: o });
+      } else {
+        r.z = n;
+      }
+      r.info.textContent = infoText(r.z, aus);
     });
   }
 
@@ -105,6 +123,10 @@ export function zeigeBuchenDialog(opt) {
       el('label', { class: 'formfeld' }, el('span', { class: 'formlabel', text: 'Datum' }), datum),
       el('label', { class: 'formfeld' }, el('span', { class: 'formlabel', text: 'Notiz' }), notiz)
     ),
+    projektWahl
+      ? el('label', { class: 'formfeld' },
+        el('span', { class: 'formlabel', text: 'Für Projekt (freiwillig)' }), projektWahl)
+      : null,
     el('div', { class: 'buch-liste' }, ...reihen.map(function (r) { return r.zeile; })),
     fehler,
     el('div', { class: 'form-knoepfe' }, ok, abbrechen)
@@ -162,7 +184,10 @@ export function zeigeBuchenDialog(opt) {
         return;
       }
       if (d > n) { meldung(nm + ': „davon defekt“ ist größer als die Anzahl.', r.defekt); return; }
-      positionen.push({ material_id: z.id, anzahl: n, defekt: d > 0 ? d : '' });
+      const pos = { material_id: z.id, anzahl: n, defekt: d > 0 ? d : '' };
+      if (z._pid !== undefined) pos.projekt_id = z._pid;
+      else if (aus) pos.projekt_id = opt.projektId || (projektWahl ? projektWahl.value : '');
+      positionen.push(pos);
     }
     if (!positionen.length) {
       meldung('Bitte bei mindestens einem Material eine Anzahl eintragen.', reihen[0].feld);
