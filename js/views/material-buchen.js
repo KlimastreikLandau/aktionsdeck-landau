@@ -156,6 +156,7 @@ export function zeigeBuchenDialog(opt) {
         ? el('p', {
           class: 'leise',
           text: 'Verbrauchsmaterial: trage ein, was übrig ist. Leere Felder werden nicht gebucht. ' +
+            'Im Projekt heißt 0: alles verbraucht, die Position wird abgeschlossen. ' +
             'Neu gedruckt? Dann im Material über „Bearbeiten“ die Anzahl erhöhen.'
         })
         : null,
@@ -188,6 +189,11 @@ export function zeigeBuchenDialog(opt) {
       const nm = '„' + String(z.name) + '“';
       if (isNaN(n) || n < 0) { meldung(nm + ': Die Anzahl muss eine Zahl sein.', r.feld); return; }
       if (isNaN(d) || d < 0) { meldung(nm + ': „davon defekt“ muss eine Zahl sein.', r.defekt); return; }
+      // Verbrauchsmaterial im Projekt mit 0 zurück = alles verbraucht, Position abschließen
+      if (!aus && z._verbrauch && z._pid && r.feld.value.trim() === '0') {
+        aufraeumen.push({ pid: String(z._pid), mid: String(z.id) });
+        continue;
+      }
       if (n === 0) {
         if (d > 0) { meldung(nm + ': „davon defekt“ ist größer als die Anzahl.', r.defekt); return; }
         continue;
@@ -207,7 +213,7 @@ export function zeigeBuchenDialog(opt) {
       positionen.push(pos);
       if (!aus && z._pid && n >= z._draussen) aufraeumen.push({ pid: String(z._pid), mid: String(z.id) });
     }
-    if (!positionen.length) {
+     if (!positionen.length && !aufraeumen.length) {
       meldung('Bitte bei mindestens einem Material eine Anzahl eintragen.', reihen[0].feld);
       return;
     }
@@ -215,7 +221,7 @@ export function zeigeBuchenDialog(opt) {
     ok.disabled = true;
     ok.textContent = 'Buche …';
     try {
-      await api('buchen', {
+      if (positionen.length) await api('buchen', {
         art: opt.art,
         person: name,
         datum: datum.value,
@@ -238,7 +244,7 @@ export function zeigeBuchenDialog(opt) {
     zu();
     const k = positionen.length;
     const was = k === 1 ? '1 Material' : k + ' Materialien';
-    toast(was + (aus ? ' ausgebucht.' : ' zurückgebucht.'));
+    toast(k === 0 ? 'Abgeschlossen: alles verbraucht.' : was + (aus ? ' ausgebucht.' : ' zurückgebucht.'));
     await vormerkungLoeschen(opt.token, aufraeumen);
     await opt.onFertig();
   });
