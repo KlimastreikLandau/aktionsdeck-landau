@@ -101,6 +101,13 @@ export const SCHEMA = {
       { name: 'text', label: 'Absprachen', typ: 'langtext' }
     ]
   },
+  Learnings: {
+    titel: 'Learnings',
+    felder: [
+      { name: 'aktionsart', label: 'Aktionsart (z. B. Demo, Infostand)', typ: 'text', pflicht: true },
+      { name: 'text', label: 'Learning', typ: 'langtext', pflicht: true }
+    ]
+  },
   Kommentare: {
     titel: 'Kommentare',
     felder: [
