@@ -13,8 +13,8 @@ import { zeigeFenster } from '../ui/fenster.js';
 import { fortschrittsBalken } from '../ui/balken.js';
 import { baueFormular } from '../ui/form.js';
 import { toast } from '../ui/toast.js';
-import { SCHEMA } from '../schema.js';
-import { zeitText } from './material-rechnen.js';
+import { SCHEMA, istWahr } from '../schema.js';
+import { zeitText, ausgeliehenProjekt, istVerbrauch } from './material-rechnen.js';
 import { datumText } from './todos-rechnen.js';
 import {
   statusText, istAbgeschlossen, fortschritt, fortschrittText, sortiereProjekte, terminText
@@ -168,6 +168,7 @@ export async function render(container, ctx) {
     if (wahl.value && wahl.value !== k) wahl.value = '';
     suche.value = '';
     offen[k] = true;
+    if (istPlanung(p)) merk.planungAuf = true;
     zeichne();
     const e = bloecke[k];
     if (e) e.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -279,6 +280,15 @@ export async function render(container, ctx) {
           el('span', { class: 'status-marke status-' + st, text: statusText(p.status) }),
           el('span', { class: 'projekt-aktionen' },
             el('button', {
+              class: 'knopf knopf-hell knopf-klein', type: 'button',
+              text: istAbgeschlossen(p) ? 'Wieder öffnen' : 'Abschließen',
+              onclick: function (ev) {
+                ev.preventDefault(); ev.stopPropagation();
+                if (istAbgeschlossen(p)) statusSetzen(p, 'aktiv', 'Projekt wieder geöffnet.');
+                else abschliessen(p);
+              }
+            }),
+            el('button', {
               class: 'knopf knopf-hell knopf-klein', type: 'button', text: 'Bearbeiten',
               onclick: function (ev) { ev.preventDefault(); ev.stopPropagation(); formZeigen(p); }
             }),
@@ -333,10 +343,30 @@ export async function render(container, ctx) {
     if (liste.length && !angezeigt.length) {
       box.append(el('p', { class: 'leise', text: 'Nichts gefunden.' }));
     }
-    gruppenVon(angezeigt).forEach(function (g) {
-      const wrap = el('div', {
-        class: 'projekt-gruppe' + (g.titel === 'In Planung' ? ' projekt-gruppe-planung' : '')
-      });
+        gruppenVon(angezeigt).forEach(function (g) {
+      if (g.titel === 'In Planung') {
+        // In Planung: Aufklapper ganz unten, Zustand bleibt beim Reiterwechsel
+        const hd = el('details', { class: 'projekt-teil projekt-gruppe-planung' });
+        const hatOffenes = g.liste.some(function (p) { return offen[String(p.id)]; });
+        if (merk.planungAuf || hatOffenes) hd.open = true;
+        hd.addEventListener('toggle', function () {
+          merk.planungAuf = hd.open;
+          if (!hd.open) g.liste.forEach(function (p) { delete offen[String(p.id)]; });
+        });
+        const inhalt = el('div', { class: 'projekt-teil-body' });
+        g.liste.forEach(function (p) { inhalt.append(block(p)); });
+        hd.append(
+          el('summary', null,
+            el('span', { class: 'teil-pfeil', 'aria-hidden': 'true', text: '▸' }),
+            el('strong', { text: 'In Planung' }),
+            el('span', { class: 'leise', text: g.liste.length + (g.liste.length === 1 ? ' Projekt' : ' Projekte') })
+          ),
+          inhalt
+        );
+        box.append(hd);
+        return;
+      }
+      const wrap = el('div', { class: 'projekt-gruppe' });
       if (g.titel) wrap.append(el('h2', { class: 'projekt-gruppe-titel', text: g.titel }));
       g.liste.forEach(function (p) { wrap.append(block(p)); });
       box.append(wrap);
@@ -395,6 +425,63 @@ export async function render(container, ctx) {
     }
   }
 
+   // ---- Status ändern, Abschließen mit Prüfung ----
+
+  async function statusSetzen(p, neuerStatus, text) {
+    try {
+      await api('update', {
+        tabelle: 'Projekte', id: p.id, daten: { status: neuerStatus }, bekannt: p.geaendert_am
+      }, s.token);
+      toast(text);
+      await laden(false);
+    } catch (e) {
+      if (ctx.behandleFehler(e)) return;
+      if (e.code === 'konflikt' || e.code === 'nicht_gefunden') {
+        toast('Jemand anderes hat dies gerade geändert. Bitte noch einmal versuchen.');
+        laden(false);
+      } else {
+        toast(e.message);
+      }
+    }
+  }
+
+  function abschliessen(p) {
+    const id = String(p.id);
+    const matById = {};
+    daten.material.forEach(function (m) { matById[String(m.id)] = m; });
+
+    // Festes Material, das noch für dieses Projekt draußen ist: sperrt
+    const pp = ausgeliehenProjekt(daten.ausleihe);
+    const draussen = [];
+    Object.keys(pp).forEach(function (mid) {
+      const n = (pp[mid] || {})[id] || 0;
+      const m = matById[mid];
+      if (n > 0 && m && !istVerbrauch(m)) draussen.push(String(m.name) + ' (' + n + ')');
+    });
+    if (draussen.length) {
+      window.alert('Das Projekt kann noch nicht abgeschlossen werden.\n\n' +
+        'Noch ausgeliehen: ' + draussen.join(', ') + '.\n\nBitte zuerst zurückgeben.');
+      return;
+    }
+
+    // Warnungen: offene ToDos, nicht beschafftes Material
+    const offeneTodos = daten.todos.filter(function (t) {
+      return String(t.projekt_id || '').trim() === id && !istWahr(t.erledigt);
+    }).length;
+    const offenesMaterial = daten.pm.filter(function (r) {
+      return String(r.projekt_id || '').trim() === id && !istWahr(r.beschafft);
+    }).length;
+    const warn = [];
+    if (offeneTodos) warn.push('• ' + offeneTodos + ' ToDos sind noch offen');
+    if (offenesMaterial) warn.push('• ' + offenesMaterial + ' Material-Positionen sind nicht beschafft');
+
+    const frage = 'Projekt „' + String(p.titel) + '“ abschließen?\n\n' +
+      (warn.length ? 'Achtung:\n' + warn.join('\n') + '\n\n' : '') +
+      'Es steht danach im Archiv. Über „Wieder öffnen“ holst du es zurück.';
+    if (!window.confirm(frage)) return;
+    statusSetzen(p, 'erledigt', 'Projekt abgeschlossen. Es steht jetzt im Archiv.');
+  }
+  
   // ---- Löschen (mit allem Zugehörigen) ----
 
   async function loeschen(p) {
