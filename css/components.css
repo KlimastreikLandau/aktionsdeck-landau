@@ -1293,3 +1293,20 @@ p.notiz.erledigt {
 .hut-toggler > summary strong { color: #b3261e; }
 .hut-toggler .projekt-teil-body { background: #fdecea; border-top-color: #e3b1ab; }
 .hut-toggler .dash-zeile { border-bottom-color: #e3b1ab; }
+
+/* ---- 0.21.6: dunklerer Hintergrund, kleine Knöpfe, rote Überfällig-Zeile ---- */
+:root { --hintergrund: #dfe8e4; }
+
+/* Details im Reiter ToDos: alle Knöpfe klein */
+.detail .detail-knoepfe .knopf {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* Überfällige ToDos: Infozeile (mit "Fällig … (überfällig)") rot */
+.dash-todo.ueberfaellig .leise {
+  color: #b3261e;
+  font-weight: 600;
+}
