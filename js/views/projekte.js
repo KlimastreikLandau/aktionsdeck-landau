@@ -20,7 +20,6 @@ import {
   statusText, istAbgeschlossen, fortschritt, fortschrittText, sortiereProjekte, terminText
 } from './projekt-rechnen.js';
 import { baueTodoTeil } from './projekt-todos.js';
-import { baueTeamTeil } from './projekt-team.js';
 
 // Bleibt beim Reiterwechsel erhalten. Neue Anmeldung (anderes Token) = leer.
 // offen: aufgeklappte Projekte. teile: aufgeklappte Teile ("<id>:todos", "<id>:team").
@@ -220,20 +219,6 @@ export async function render(container, ctx) {
       else delete offen[id];
     });
 
-    const teamKey = id + ':todos';
-    const teamTeil = baueTeamTeil({
-      ctx: ctx,
-      token: s.token,
-      projekt: p,
-      holeDaten: function () { return daten; },
-      offen: !!merk.teile[teamKey],
-      beiToggle: function (o) {
-        if (o) merk.teile[teamKey] = true;
-        else delete merk.teile[teamKey];
-      },
-      neuLaden: function () { return laden(false); }
-    });
-
     const teilKey = id + ':todos';
     const todoTeil = baueTodoTeil({
       ctx: ctx,
@@ -248,8 +233,7 @@ export async function render(container, ctx) {
       },
       neuZeichnen: zeichne,
       neuLaden: function () { return laden(false); },
-       merken: merken,
-      teamBereich: teamTeil
+       merken: merken
     });
 
     const termine = terminText(p);
