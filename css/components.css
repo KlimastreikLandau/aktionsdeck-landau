@@ -1166,3 +1166,68 @@ p.notiz.erledigt {
 .dash-schalter:hover { background: var(--gruen-hell); }
 .dash-schalter:focus-visible { outline: 2px solid var(--gruppe); }
 .teil-pfeil.auf { transform: rotate(90deg); }
+
+/* ---- Etappe 4.2.2 und 4.3: Vorlagen, Team und Hüte ---- */
+
+/* Häkchenliste der Meilenstein-Vorlage im Formular */
+.vorlage-liste {
+  display: grid;
+  gap: 2px;
+  padding: 8px 0;
+  border-top: 1px solid var(--rand);
+  border-bottom: 1px solid var(--rand);
+}
+
+.vorlage-liste p { margin: 0 0 6px; font-size: 14px; }
+
+.vorlage-zeile {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 44px;
+  padding: 6px 0;
+  cursor: pointer;
+}
+
+.vorlage-zeile .auswahl-box { flex: none; margin-top: 2px; }
+.vorlage-text { display: grid; gap: 2px; }
+
+/* Hut (Zuständigkeit) mit Personen */
+.hut {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--rand);
+  border-left: 6px solid var(--gruppe);
+  border-radius: var(--radius);
+}
+
+.hut.frei { border-left-color: #c77c00; background: #fff7e8; }
+
+.hut-titel {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-bottom: 6px;
+}
+
+.hut-person {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--rand);
+}
+
+.hut-person-text {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-width: 160px;
+}
+
+.hut-zahlen.ueber { color: #b3261e; font-weight: 600; }
+
+.hut-knoepfe { display: flex; gap: 8px; flex-wrap: wrap; }
