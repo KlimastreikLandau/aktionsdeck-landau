@@ -35,7 +35,7 @@ export const SCHEMA = {
     felder: [
       { name: 'text', label: 'Titel', typ: 'text', pflicht: true },
       { name: 'details', label: 'Weitere Informationen (freiwillig)', typ: 'langtext' },
-      { name: 'verantwortlich', label: 'Verantwortlich', typ: 'text' },
+      { name: 'verantwortlich', label: 'Verantwortlich (leer = Hut noch frei)', typ: 'text' },
       { name: 'faellig_am', label: 'Fällig am', typ: 'datum' },
       { name: 'prioritaet', label: 'Priorität', typ: 'auswahl', optionen: ['hoch', 'normal', 'niedrig'] }
     ]
