@@ -295,6 +295,9 @@ export function baueMaterialTeil(opt) {
     Object.keys(pp).forEach(function (id) {
       const n = pp[id][pid];
       if (!(n > 0) || !matById[id]) return;
+      // Verbrauchsmaterial nur, wenn es als Position im Projekt steht
+      const verbr = String(matById[id].typ || '').trim().toLowerCase() === 'verbrauch';
+      if (verbr && !zeilen.some(function (r) { return String(r.material_id) === id; })) return;
       items.push(Object.assign({}, mitVerfuegbar(matById[id], out), { _pid: pid, _draussen: n }));
     });
     if (!items.length) {
@@ -318,7 +321,7 @@ export function baueMaterialTeil(opt) {
     const info = [
       'Menge: ' + r.menge + einheit,
       r.beschaffung,
-      dr > 0 ? 'Draußen für dieses Projekt: ' + dr : '',
+      dr > 0 ? (z && z._verbrauch ? 'Mitgenommen: ' : 'Draußen für dieses Projekt: ') + dr : '',
       z && !z._verbrauch && z._verfuegbar !== '' ? 'Verfügbar: ' + z._verfuegbar : '',
       r.material_id && !m ? 'Nicht mehr im Bestand' : ''
     ].filter(Boolean).join(' · ');
