@@ -602,6 +602,7 @@ export async function render(container, ctx) {
         async function () {
           const r = await api('listMehrere', {
             tabellen: ['Projekte', 'ToDos', 'Meilensteine', 'Material', 'Ausleihe', 'Projekt_Material', 'Finanzen', 'Learnings']
+          }, s.token);
           const t = (r && r.tabellen) || {};
           return {
             projekte: t.Projekte || [],
