@@ -1238,3 +1238,9 @@ p.notiz.erledigt {
 
 /* ---- 0.21.2: Hüte im Teil ToDos ---- */
 .hut-bereich { margin: 4px 0 12px; }
+
+/* ---- 0.21.3: Hüte = ToDos ohne Verantwortliche ---- */
+.hut-knoepfe { margin-bottom: 8px; }
+.dash-zeile.mit-hut { flex-wrap: wrap; }
+.dash-zeile.mit-hut .hut-knoepfe { flex-basis: 100%; margin-bottom: 0; padding: 0 0 8px 38px; }
+.hut-toggler { margin: 12px 0; }
