@@ -15,7 +15,7 @@ import { getName } from '../store.js';
 import { istWahr } from '../schema.js';
 import { zeitText } from './material-rechnen.js';
 import { abhakWerte, abhakenSpeichern } from './todos-abhaken.js';
-import { istOffenerHut } from './todos-hut.js';
+import { istOffenerHut, huetKnoepfe } from './todos-hut.js';
 import {
   kurz, faelligStatus, faelligText, prioText, sortieren, sortiereErledigte,
   istAllgemein, istArchiv, zahlenText
@@ -191,7 +191,7 @@ export async function render(container, ctx) {
         };
         const listeFuer = function (key, liste, leer) {
           const ul = el('ul', { class: 'dash-todo-liste' });
-          liste.forEach(function (t) { ul.append(zeile(t, href)); });
+          liste.forEach(function (t) { ul.append(zeile(t, href, true)); });
           if (!liste.length) ul.append(el('li', { class: 'leise', text: leer }));
           return ul;
         };
@@ -267,7 +267,17 @@ export async function render(container, ctx) {
   }
 
   // href: wohin ein Klick auf den Text führt (Standard: Reiter ToDos)
-  function zeile(t, href) {
+    function hutOpt(t) {
+    return {
+      ctx: ctx, token: s.token, t: t,
+      fertig: function () {
+        cacheSet(cacheKey, { daten: letzte.daten, stand: new Date().toISOString() });
+        zeichne();
+      }
+    };
+  }
+
+  function zeile(t, href, mitHut) {
     const fertig = istWahr(t.erledigt);
     const klassen = ['dash-todo'];
     if (fertig) klassen.push('erledigt');
@@ -287,13 +297,15 @@ export async function render(container, ctx) {
     cb.checked = fertig;
     cb.addEventListener('change', function () { abhaken(t, cb.checked); });
 
-    return el('li', { class: 'dash-zeile' + (fertig ? ' erledigt' : '') },
+    const li = el('li', { class: 'dash-zeile' + (mitHut && !fertig ? ' mit-hut' : '') + (fertig ? ' erledigt' : '') },
       cb,
       el('a', { class: klassen.join(' '), href: href || todosLink },
         el('strong', { text: kurz(t.text, 90) }),
         info ? el('span', { class: 'leise', text: info }) : null
       )
     );
+    if (mitHut && !fertig) li.append(huetKnoepfe(hutOpt(t)));
+    return li;
   }
 
   function zeichne() {
