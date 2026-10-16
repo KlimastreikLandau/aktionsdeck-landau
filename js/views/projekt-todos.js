@@ -529,7 +529,8 @@ export function baueTodoTeil(opt) {
       })
     )
   );
-
+  
+  if (opt.teamBereich) body.append(opt.teamBereich);
   if (alle.length) body.append(el('p', { class: 'dash-zahlen', text: zahlenText(alle, getName()) }));
   if (!alle.length && !ms.length) {
     body.append(el('p', { class: 'leise', text: 'Noch keine ToDos in diesem Projekt.' }));
