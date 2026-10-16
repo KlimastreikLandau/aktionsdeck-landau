@@ -220,7 +220,7 @@ export async function render(container, ctx) {
       else delete offen[id];
     });
 
-    const teamKey = id + ':team';
+    const teamKey = id + ':todos';
     const teamTeil = baueTeamTeil({
       ctx: ctx,
       token: s.token,
@@ -248,7 +248,8 @@ export async function render(container, ctx) {
       },
       neuZeichnen: zeichne,
       neuLaden: function () { return laden(false); },
-      merken: merken
+       merken: merken,
+      teamBereich: teamTeil
     });
 
     const termine = terminText(p);
@@ -282,7 +283,6 @@ export async function render(container, ctx) {
           ['Deadline', datumText(p.deadline)],
           ['Geplantes Budget', euro(p.budget_geplant)]
         ]),
-        teamTeil,
         todoTeil,
         el('p', {
           class: 'leise',
