@@ -15,6 +15,7 @@ import { getName } from '../store.js';
 import { istWahr } from '../schema.js';
 import { zeitText } from './material-rechnen.js';
 import { abhakWerte, abhakenSpeichern } from './todos-abhaken.js';
+import { istOffenerHut } from './todos-hut.js';
 import {
   kurz, faelligStatus, faelligText, prioText, sortieren, sortiereErledigte,
   istAllgemein, istArchiv, zahlenText
@@ -139,7 +140,10 @@ export async function render(container, ctx) {
           class: 'knopf knopf-hell', type: 'button',
           text: alleAuf ? 'Alle zuklappen' : 'Alle aufklappen',
           onclick: function () {
-            gezeigt.forEach(function (p) { projektOffen[String(p.id)] = !alleAuf; });
+            gezeigt.forEach(function (p) {
+              projektOffen[String(p.id)] = !alleAuf;
+              projektOffen[String(p.id) + ':hut'] = !alleAuf;
+            });
             zeichneProjekte();
           }
         })
@@ -163,32 +167,41 @@ export async function render(container, ctx) {
       );
 
       if (letzte) {
-        const offene = sortieren(todos.filter(function (t) {
+        const offeneAlle = todos.filter(function (t) {
           return String(t.projekt_id || '').trim() === id && !istWahr(t.erledigt);
-        }));
-        const aufgeklappt = !!projektOffen[id];
-        const schalter = el('button', {
-          class: 'dash-schalter', type: 'button',
-          'aria-expanded': String(aufgeklappt),
-          onclick: function () {
-            if (projektOffen[id]) delete projektOffen[id];
-            else projektOffen[id] = true;
-            zeichneProjekte();
-          }
-        },
-          el('span', { class: 'teil-pfeil' + (aufgeklappt ? ' auf' : ''), 'aria-hidden': 'true', text: '▸' }),
-          el('span', { text: 'ToDos (' + offene.length + ' offen)' })
-        );
-        const teil = el('div', { class: 'dash-projekt-todos' }, schalter);
-        if (aufgeklappt) {
+        });
+        const mitWer = sortieren(offeneAlle.filter(function (t) { return !istOffenerHut(t); }));
+        const hueteListe = sortieren(offeneAlle.filter(istOffenerHut));
+        const keyHut = id + ':hut';
+
+        const schalter = function (key, label, liste) {
+          const auf = !!projektOffen[key];
+          return el('button', {
+            class: 'dash-schalter', type: 'button',
+            'aria-expanded': String(auf),
+            onclick: function () {
+              if (projektOffen[key]) delete projektOffen[key];
+              else projektOffen[key] = true;
+              zeichneProjekte();
+            }
+          },
+            el('span', { class: 'teil-pfeil' + (auf ? ' auf' : ''), 'aria-hidden': 'true', text: '▸' }),
+            el('span', { text: label + ' (' + liste.length + ' offen)' })
+          );
+        };
+        const listeFuer = function (key, liste, leer) {
           const ul = el('ul', { class: 'dash-todo-liste' });
-          offene.forEach(function (t) { ul.append(zeile(t, href)); });
-          if (!offene.length) {
-            ul.append(el('li', { class: 'leise', text: 'Keine offenen ToDos.' }));
-          }
-          teil.append(ul);
-        }
-        blockEl.append(teil);
+          liste.forEach(function (t) { ul.append(zeile(t, href)); });
+          if (!liste.length) ul.append(el('li', { class: 'leise', text: leer }));
+          return ul;
+        };
+
+        blockEl.append(el('div', { class: 'dash-projekt-spalten' },
+          schalter(id, 'ToDos', mitWer),
+          schalter(keyHut, 'Hüte', hueteListe)
+        ));
+        if (projektOffen[id]) blockEl.append(listeFuer(id, mitWer, 'Keine offenen ToDos.'));
+        if (projektOffen[keyHut]) blockEl.append(listeFuer(keyHut, hueteListe, 'Keine offenen Hüte.'));
       }
       projektListe.append(blockEl);
     });
