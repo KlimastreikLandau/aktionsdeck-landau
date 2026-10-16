@@ -329,21 +329,7 @@ export function baueTeamTeil(opt) {
     huete.forEach(function (g) { body.append(hutBlock(g)); });
   }
 
-
-
-  const kurzInfo = personenAnzahl + (personenAnzahl === 1 ? ' Person' : ' Personen') +
-    (freieHuete ? ' · ' + freieHuete + (freieHuete === 1 ? ' Hut frei' : ' Hüte frei') : '');
-
-  const teil = el('details', { class: 'projekt-teil' });
-  if (opt.offen) teil.open = true;
-  teil.addEventListener('toggle', function () { opt.beiToggle(teil.open); });
-  teil.append(
-    el('summary', null,
-      el('span', { class: 'teil-pfeil', 'aria-hidden': 'true', text: '▸' }),
-      el('strong', { text: 'Team und Hüte' }),
-      el('span', { class: 'leise', text: kurzInfo })
-    ),
-    body
-  );
-  return teil;
+  // Kein eigener Aufklapper mehr: der Inhalt wird im Teil "ToDos" eingebaut
+  body.className = 'hut-bereich';
+  return body;
 }
