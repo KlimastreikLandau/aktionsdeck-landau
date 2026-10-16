@@ -137,7 +137,7 @@ export async function render(container, ctx) {
       const alleAuf = gezeigt.every(function (p) { return projektOffen[String(p.id)]; });
       projektListe.append(el('div', { class: 'dash-projekt-knopf' },
         el('button', {
-          class: 'knopf knopf-hell', type: 'button',
+          class: 'knopf knopf-hell knopf-klein', type: 'button',
           text: alleAuf ? 'Alle zuklappen' : 'Alle aufklappen',
           onclick: function () {
             gezeigt.forEach(function (p) {
