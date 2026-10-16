@@ -244,7 +244,5 @@ export function zeigeBuchenDialog(opt) {
   });
 
   document.body.append(hintergrund);
-  });
-
   (person.value ? reihen[0].feld : person).focus();
 }
