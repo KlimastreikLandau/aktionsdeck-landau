@@ -23,6 +23,10 @@ import {
 import {
   fortschritt, meilensteinStand, sortiereMeilensteine, meilensteinFaellig
 } from './projekt-rechnen.js';
+import { huetKnoepfe, istOffenerHut } from './todos-hut.js';
+
+// Aufgeklappte Hut-Listen je Projekt (bleibt beim Neuzeichnen erhalten)
+const hutOffen = {};
 
 export function baueTodoTeil(opt) {
   const ctx = opt.ctx;
@@ -30,6 +34,14 @@ export function baueTodoTeil(opt) {
   const pid = String(opt.projekt.id);
 
   function daten() { return opt.holeDaten(); }
+  
+  // Einstellungen für die Hut-Knöpfe eines ToDos
+  function hutOpt(t) {
+    return {
+      ctx: ctx, token: token, t: t, personen: personen,
+      fertig: function () { opt.merken(); opt.neuZeichnen(); }
+    };
+  }
 
   const alle = daten().todos.filter(function (t) {
     return String(t.projekt_id || '').trim() === pid;
@@ -151,35 +163,9 @@ export function baueTodoTeil(opt) {
 
   // ---- ToDo: Formular (t = null heißt neu, mid = vorgewählter Meilenstein) ----
 
-  function todoFormZeigen(t, mid) {
+    function todoFormZeigen(t, mid) {
     let fenster = null;
     const felder = SCHEMA.ToDos.felder.slice();
-
-    // Hüte dieses Projekts mit ihren Personen
-    const huete = [];
-    (daten().team || []).forEach(function (r) {
-      if (String(r.projekt_id || '').trim() !== pid) return;
-      const h = String(r.zustaendigkeit || '').trim();
-      if (!h) return;
-      let g = huete.find(function (x) { return x.name.toLowerCase() === h.toLowerCase(); });
-      if (!g) { g = { name: h, personen: [] }; huete.push(g); }
-      const p = String(r.person || '').trim();
-      if (p && g.personen.indexOf(p) < 0) g.personen.push(p);
-    });
-    huete.sort(function (a, b) { return a.name.localeCompare(b.name, 'de'); });
-    if (huete.length) {
-      felder.splice(2, 0, {
-        name: '_hut',
-        label: 'Hut (trägt die Person bei „Verantwortlich“ ein)',
-        typ: 'auswahl',
-        optionen: huete.map(function (g) {
-          return {
-            wert: g.name,
-            label: g.name + (g.personen.length ? ' (' + g.personen.join(', ') + ')' : ' (noch frei)')
-          };
-        })
-      });
-    }
     if (ms.length) {
       // Nach "Weitere Informationen" einfügen
       felder.splice(2, 0, {
@@ -195,17 +181,6 @@ export function baueTodoTeil(opt) {
       onSpeichern: function (d) { return todoSpeichern(t, d, fenster); },
       onAbbrechen: function () { fenster.schliessen(); }
     });
-
-    // Hut gewählt: Person(en) bei "Verantwortlich" eintragen (danach von Hand änderbar)
-    const hutWahl = form.querySelector('select[name="_hut"]');
-    const wer = form.querySelector('input[name="verantwortlich"]');
-    if (hutWahl && wer) {
-      hutWahl.addEventListener('change', function () {
-        const g = huete.find(function (x) { return x.name === hutWahl.value; });
-        if (g && g.personen.length) wer.value = g.personen.join(', ');
-      });
-    }
-
     fenster = fensterMitLoeschen(
       t ? 'ToDo bearbeiten' : 'Neues ToDo',
       form,
@@ -449,7 +424,9 @@ export function baueTodoTeil(opt) {
       info ? el('span', { class: 'leise', text: info }) : null,
       t.details ? el('span', { class: 'leise', text: kurz(t.details, 100) }) : null
     );
-    return el('li', { class: 'dash-zeile' + (fertig ? ' erledigt' : '') }, cb, knopf);
+    const li = el('li', { class: 'dash-zeile mit-hut' + (fertig ? ' erledigt' : '') }, cb, knopf);
+    if (!fertig) li.append(huetKnoepfe(hutOpt(t)));
+    return li; 
   }
 
   function todoListe(liste) {
@@ -530,7 +507,30 @@ export function baueTodoTeil(opt) {
     )
   );
   
-  if (opt.teamBereich) body.append(opt.teamBereich);
+    const freie = sortieren(alle.filter(istOffenerHut));
+  if (freie.length) {
+    const hd = el('details', { class: 'projekt-teil hut-toggler' });
+    if (hutOffen[pid]) hd.open = true;
+    hd.addEventListener('toggle', function () {
+      if (hd.open) hutOffen[pid] = true;
+      else delete hutOffen[pid];
+    });
+    hd.append(
+      el('summary', null,
+        el('span', { class: 'teil-pfeil', 'aria-hidden': 'true', text: '▸' }),
+        el('strong', { text: 'Offene Hüte' }),
+        el('span', { class: 'leise', text: freie.length + ' ToDos ohne Verantwortliche' })
+      ),
+      el('div', { class: 'projekt-teil-body' },
+        el('p', {
+          class: 'leise',
+          text: 'Diese ToDos hat noch niemand. Mit „Hut übernehmen“ trägst du dich selbst ein.'
+        }),
+        todoListe(freie)
+      )
+    );
+    body.append(hd);
+  }
   if (alle.length) body.append(el('p', { class: 'dash-zahlen', text: zahlenText(alle, getName()) }));
   if (!alle.length && !ms.length) {
     body.append(el('p', { class: 'leise', text: 'Noch keine ToDos in diesem Projekt.' }));
