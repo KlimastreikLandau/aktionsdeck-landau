@@ -1244,3 +1244,25 @@ p.notiz.erledigt {
 .dash-zeile.mit-hut { flex-wrap: wrap; }
 .dash-zeile.mit-hut .hut-knoepfe { flex-basis: 100%; margin-bottom: 0; padding: 0 0 8px 38px; }
 .hut-toggler { margin: 12px 0; }
+
+/* ---- 0.21.4: kleine Hut-Knöpfe in der Zeile, zwei Schalter im Start ---- */
+.knopf-klein {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.dash-zeile.mit-hut { flex-wrap: nowrap; }
+.dash-zeile.mit-hut .hut-knoepfe {
+  flex: none;
+  flex-basis: auto;
+  margin: 0;
+  padding: 0 8px 0 0;
+}
+
+.dash-projekt-spalten {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 8px;
+}
