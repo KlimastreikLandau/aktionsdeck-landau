@@ -1,6 +1,7 @@
 // js/views/projekt-todos.js
 // Teil "ToDos" eines Projekts: Zählzeile, Meilensteine mit Balken, ToDos darunter, Anlegen/Ändern/Löschen.
 // Zeigt ALLE ToDos des Projekts (kein 14-Tage-Archiv). Erledigte sind grau und durchgestrichen.
+// "+ Meilenstein" bietet zuerst Vorlagen an (js/vorlagen.js). Die ToDos der Vorlage können abgewählt werden.
 // Wird von projekte.js benutzt. Der Teil klappt auf und zu (Zustand liegt in projekte.js).
 //
 // opt: { ctx, token, projekt, holeDaten() -> { todos, meilensteine }, arbeitet (Objekt),
@@ -14,6 +15,7 @@ import { baueFormular } from '../ui/form.js';
 import { toast } from '../ui/toast.js';
 import { getName } from '../store.js';
 import { SCHEMA, istWahr } from '../schema.js';
+import { VORLAGEN, faelligAus } from '../vorlagen.js';
 import { abhakWerte, abhakenSpeichern } from './todos-abhaken.js';
 import {
   kurz, faelligStatus, faelligText, prioText, sortieren, zahlenText, datumText
@@ -215,30 +217,136 @@ export function baueTodoTeil(opt) {
     }
   }
 
-  // ---- Meilenstein: Formular (m = null heißt neu) ----
+  // ---- Meilenstein: Vorlagenwahl (erster Schritt bei "+ Meilenstein") ----
 
-  function meilensteinFormZeigen(m) {
+  function vorlagenWahlZeigen() {
     let fenster = null;
-    const form = baueFormular(SCHEMA.Meilensteine.felder, m || {}, {
-      speichernText: m ? 'Speichern' : 'Anlegen',
+    const knoepfe = el('div', { class: 'mehr-knoepfe' },
+      el('button', {
+        class: 'knopf', type: 'button', text: 'Ohne Vorlage',
+        onclick: function () { fenster.schliessen(); meilensteinFormZeigen(null, null); }
+      })
+    );
+    VORLAGEN.forEach(function (v) {
+      knoepfe.append(el('button', {
+        class: 'knopf knopf-hell', type: 'button',
+        text: v.name + ' (' + v.schritte.length + ' ToDos)',
+        onclick: function () { fenster.schliessen(); meilensteinFormZeigen(null, v); }
+      }));
+    });
+    knoepfe.append(el('button', {
+      class: 'knopf knopf-hell', type: 'button', text: 'Abbrechen',
+      onclick: function () { fenster.schliessen(); }
+    }));
+    fenster = zeigeFenster('Neuer Meilenstein', el('div', null,
+      el('p', {
+        class: 'leise',
+        text: 'Wähle eine Vorlage oder starte leer. Die ToDos der Vorlage kannst du im nächsten Schritt abwählen.'
+      }),
+      knoepfe
+    ));
+  }
+
+  // Häkchenliste mit den ToDos der Vorlage. Fristen werden aus dem Datum des Meilensteins gerechnet.
+  function vorlagenAuswahl(vorlage, datumFeld) {
+    const zeilen = vorlage.schritte.map(function (sch) {
+      const cb = el('input', { type: 'checkbox', class: 'auswahl-box', 'aria-label': sch.text });
+      cb.checked = true;
+      const frist = el('span', { class: 'leise' });
+      const zeile = el('label', { class: 'vorlage-zeile' },
+        cb,
+        el('span', { class: 'vorlage-text' }, el('strong', { text: sch.text }), frist)
+      );
+      return { sch: sch, cb: cb, frist: frist, zeile: zeile };
+    });
+
+    function fristen() {
+      const d = datumFeld ? datumFeld.value : '';
+      zeilen.forEach(function (z) {
+        const fa = faelligAus(d, z.sch.tage_vorher);
+        z.frist.textContent = fa ? 'Fällig ' + datumText(fa) : 'Ohne Fälligkeit (trage oben ein Datum ein)';
+      });
+    }
+    if (datumFeld) {
+      datumFeld.addEventListener('input', fristen);
+      datumFeld.addEventListener('change', fristen);
+    }
+    fristen();
+
+    const knoten = el('div', { class: 'vorlage-liste' },
+      el('p', {
+        class: 'leise',
+        text: 'ToDos aus der Vorlage „' + vorlage.name + '“. Haken weg = dieses ToDo wird nicht angelegt. ' +
+          'Die Fälligkeit wird vom Datum des Meilensteins zurückgerechnet.'
+      }),
+      ...zeilen.map(function (z) { return z.zeile; })
+    );
+
+    return {
+      knoten: knoten,
+      gewaehlt: function () {
+        return zeilen.filter(function (z) { return z.cb.checked; })
+          .map(function (z) { return z.sch; });
+      }
+    };
+  }
+
+  // ---- Meilenstein: Formular (m = null heißt neu, vorlage = gewählte Vorlage oder null) ----
+
+  function meilensteinFormZeigen(m, vorlage) {
+    let fenster = null;
+    let auswahl = null;
+    const start = m || (vorlage ? { titel: vorlage.name } : {});
+    const form = baueFormular(SCHEMA.Meilensteine.felder, start, {
+      speichernText: m ? 'Speichern' : (vorlage ? 'Anlegen mit ToDos' : 'Anlegen'),
       vorschlaege: { verantwortlich: personen() },
-      onSpeichern: function (d) { return meilensteinSpeichern(m, d, fenster); },
+      onSpeichern: function (d) { return meilensteinSpeichern(m, d, fenster, auswahl); },
       onAbbrechen: function () { fenster.schliessen(); }
     });
+    if (!m && vorlage) {
+      auswahl = vorlagenAuswahl(vorlage, form.querySelector('input[name="datum"]'));
+      form.insertBefore(auswahl.knoten, form.querySelector('p.fehler'));
+    }
     fenster = fensterMitLoeschen(
-      m ? 'Meilenstein bearbeiten' : 'Neuer Meilenstein',
+      m ? 'Meilenstein bearbeiten' : (vorlage ? 'Neuer Meilenstein: ' + vorlage.name : 'Neuer Meilenstein'),
       form,
       m ? function () { meilensteinLoeschen(m, fenster); } : null
     );
   }
 
-  async function meilensteinSpeichern(m, d, fenster) {
+  async function meilensteinSpeichern(m, d, fenster, auswahl) {
     d.projekt_id = pid;
     try {
       if (!m) {
-        await api('create', { tabelle: 'Meilensteine', daten: d }, token);
+        const o = await api('create', { tabelle: 'Meilensteine', daten: d }, token);
+        const schritte = auswahl ? auswahl.gewaehlt() : [];
+        if (schritte.length) {
+          const liste = schritte.map(function (sch) {
+            return {
+              projekt_id: pid,
+              meilenstein_id: String(o.id),
+              text: sch.text,
+              details: sch.details || '',
+              faellig_am: faelligAus(d.datum, sch.tage_vorher),
+              prioritaet: 'normal'
+            };
+          });
+          try {
+            await api('batchCreate', { tabelle: 'ToDos', liste: liste }, token);
+          } catch (e2) {
+            // Der Meilenstein steht schon. Nicht noch einmal anlegen lassen.
+            fenster.schliessen();
+            opt.beiToggle(true);
+            if (ctx.behandleFehler(e2)) return;
+            toast('Meilenstein angelegt, aber die ToDos nicht: ' + e2.message);
+            await opt.neuLaden();
+            return;
+          }
+        }
         fenster.schliessen();
-        toast('Meilenstein angelegt.');
+        toast(schritte.length
+          ? 'Meilenstein mit ' + schritte.length + ' ToDos angelegt.'
+          : 'Meilenstein angelegt.');
       } else {
         const r = await api('update', {
           tabelle: 'Meilensteine', id: m.id, daten: d, bekannt: m.geaendert_am
@@ -351,7 +459,7 @@ export function baueTodoTeil(opt) {
         }),
         el('button', {
           class: 'knopf knopf-hell', type: 'button', text: 'Bearbeiten',
-          onclick: function () { meilensteinFormZeigen(m); }
+          onclick: function () { meilensteinFormZeigen(m, null); }
         })
       )
     );
@@ -385,7 +493,7 @@ export function baueTodoTeil(opt) {
       }),
       el('button', {
         class: 'knopf knopf-hell', type: 'button', text: '+ Meilenstein',
-        onclick: function () { meilensteinFormZeigen(null); }
+        onclick: function () { vorlagenWahlZeigen(); }
       })
     )
   );
