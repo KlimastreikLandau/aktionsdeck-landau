@@ -20,6 +20,7 @@ import {
   statusText, istAbgeschlossen, fortschritt, fortschrittText, sortiereProjekte, terminText
 } from './projekt-rechnen.js';
 import { baueTodoTeil } from './projekt-todos.js';
+import { baueMaterialTeil } from './projekt-material.js';
 
 // Bleibt beim Reiterwechsel erhalten. Neue Anmeldung (anderes Token) = leer.
 // offen: aufgeklappte Projekte. teile: aufgeklappte Teile ("<id>:todos", "<id>:team").
@@ -65,7 +66,7 @@ export async function render(container, ctx) {
   if (merk.token !== s.token) merk = { token: s.token, offen: {}, teile: {} };
   const offen = merk.offen;
 
-  let daten = { projekte: [], todos: [], meilensteine: [], team: [] };
+  let daten = { projekte: [], todos: [], meilensteine: [], team: [], material: [], ausleihe: [], pm: [] };
   let archivModus = false;
   let sprungId = ctx.unter || '';   // von der Start-Kachel: dieses Projekt aufklappen
   let letzteJson = '';
@@ -236,6 +237,22 @@ export async function render(container, ctx) {
        merken: merken
     });
 
+    const matKey = id + ':material';
+    const materialTeil = baueMaterialTeil({
+      ctx: ctx,
+      token: s.token,
+      projekt: p,
+      holeDaten: function () { return daten; },
+      arbeitet: arbeitet,
+      offen: !!merk.teile[matKey],
+      beiToggle: function (o) {
+        if (o) merk.teile[matKey] = true;
+        else delete merk.teile[matKey];
+      },
+      neuZeichnen: zeichne,
+      neuLaden: function () { return laden(false); },
+      merken: merken
+    });
     const termine = terminText(p);
     d.append(
       el('summary', null,
@@ -268,9 +285,10 @@ export async function render(container, ctx) {
           ['Geplantes Budget', euro(p.budget_geplant)]
         ]),
         todoTeil,
+        materialTeil,
         el('p', {
           class: 'leise',
-          text: 'Material, Finanzen und Protokoll kommen in den nächsten Schritten hier dazu.'
+          text: 'Finanzen kommen im nächsten Schritt hier dazu.'
         })
       )
     );
@@ -424,6 +442,9 @@ export async function render(container, ctx) {
     if (!neu.todos) neu.todos = [];
     if (!neu.meilensteine) neu.meilensteine = [];
     if (!neu.team) neu.team = [];
+    if (!neu.material) neu.material = [];
+    if (!neu.ausleihe) neu.ausleihe = [];
+    if (!neu.pm) neu.pm = [];
     const json = JSON.stringify(neu);
     const gleich = json === letzteJson;
     daten = neu;
@@ -457,14 +478,16 @@ export async function render(container, ctx) {
         s.gruppe_id + ':projekte',
         async function () {
           const r = await api('listMehrere', {
-            tabellen: ['Projekte', 'ToDos', 'Meilensteine', 'Projekt_Team']
+            tabellen: ['Projekte', 'ToDos', 'Meilensteine', 'Material', 'Ausleihe', 'Projekt_Material']
           }, s.token);
           const t = (r && r.tabellen) || {};
           return {
             projekte: t.Projekte || [],
             todos: t.ToDos || [],
             meilensteine: t.Meilensteine || [],
-            team: t.Projekt_Team || []
+            material: t.Material || [],
+            ausleihe: t.Ausleihe || [],
+            pm: t.Projekt_Material || []
           };
         },
         zeigen,
