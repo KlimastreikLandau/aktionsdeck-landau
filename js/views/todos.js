@@ -15,6 +15,7 @@ import { getName } from '../store.js';
 import { SCHEMA, istWahr } from '../schema.js';
 import { zeitText } from './material-rechnen.js';
 import { abhakWerte, abhakenSpeichern } from './todos-abhaken.js';
+import { huetKnoepfe, istOffenerHut } from './todos-hut.js';
 import {
   datumText, prioText, kurz, faelligStatus, faelligText, sortieren, treffer,
   zahlenText, istArchiv, sortiereErledigte
@@ -22,6 +23,9 @@ import {
 
 // Projekt-Titel nach ID (wird beim Laden gefüllt)
 let projektTitel = {};
+
+// Ist die Liste "Noch offen" aufgeklappt? (bleibt beim Reiterwechsel erhalten)
+let hutAuf = false;
 
 function projektName(t) {
   const id = String(t.projekt_id || '').trim();
@@ -99,6 +103,9 @@ export async function render(container, ctx) {
   const meineFeld = el('label', { class: 'formfeld-bool' }, meine, el('span', { text: 'Nur meine' }));
 
   const boxOffen = el('div');
+  const hutBox = el('details', { class: 'projekt-teil hut-toggler' });
+  hutBox.open = hutAuf;
+  hutBox.addEventListener('toggle', function () { hutAuf = hutBox.open; });
   const kopfErledigt = el('h2', { class: 'liste-titel' });
   const boxErledigt = el('div', { class: 'liste-erledigt' });
 
@@ -119,6 +126,7 @@ export async function render(container, ctx) {
     zahlen,
     el('div', { class: 'filterzeile filter-todos' }, suche, wer, faellig, prio, meineFeld),
     status,
+    hutBox,
     boxOffen,
     kopfErledigt,
     boxErledigt
@@ -246,6 +254,7 @@ export async function render(container, ctx) {
           onclick: function () { loeschen(t); }
         })
       ),
+      fertig ? null : huetKnoepfe(hutOpt(t)),
       el('p', { class: klasse, text: String(t.text) }),
       t.details ? el('h3', { text: 'Weitere Informationen' }) : null,
       t.details ? el('p', { class: klasse, text: String(t.details) }) : null,
@@ -388,6 +397,57 @@ export async function render(container, ctx) {
     markieren(box, zeilen);
   }
 
+    // ---- Noch offen: ToDos ohne Verantwortliche (Filter gelten hier nicht) ----
+
+  function hutOpt(t) {
+    return {
+      ctx: ctx, token: s.token, t: t, personen: verantwortlicheVorschlaege,
+      fertig: function () {
+        cacheSet(s.gruppe_id + ':todos', { daten: daten, stand: new Date().toISOString() });
+        werAufbauen();
+        zeichne();
+        if (offenId && !formOffen) detailZeigen(offenId, false);
+      }
+    };
+  }
+
+  function hutZeile(t) {
+    const info = [
+      t.faellig_am ? 'Fällig ' + faelligText(t) : '',
+      prioText(t.prioritaet),
+      projektName(t) ? 'Projekt: ' + projektName(t) : ''
+    ].filter(Boolean).join(' · ');
+    return el('li', { class: 'dash-zeile mit-hut' },
+      el('button', {
+        class: 'dash-todo pt-todo', type: 'button',
+        onclick: function () { formEnde(); offenId = t.id; detailZeigen(t.id, true); }
+      },
+        el('strong', { text: kurz(t.text, 90) }),
+        info ? el('span', { class: 'leise', text: info }) : null
+      ),
+      huetKnoepfe(hutOpt(t))
+    );
+  }
+
+  function hutZeichnen() {
+    const freie = sortieren(daten.todos.filter(istOffenerHut));
+    leeren(hutBox);
+    hutBox.hidden = archivModus || !freie.length;
+    hutBox.append(
+      el('summary', null,
+        el('span', { class: 'teil-pfeil', 'aria-hidden': 'true', text: '▸' }),
+        el('strong', { text: 'Noch offen' }),
+        el('span', { class: 'leise', text: freie.length + ' ToDos ohne Verantwortliche' })
+      ),
+      el('div', { class: 'projekt-teil-body' },
+        el('p', {
+          class: 'leise',
+          text: 'Diese ToDos hat noch niemand. Mit „Hut übernehmen“ trägst du dich selbst ein.'
+        }),
+        el('ul', { class: 'dash-todo-liste' }, ...freie.map(hutZeile))
+      )
+    );
+  }
   function zeichne() {
     const f = {
       q: suche.value.trim().toLowerCase(),
@@ -402,6 +462,7 @@ export async function render(container, ctx) {
     const erledigt = sortiereErledigte(passend.filter(function (t) { return istWahr(t.erledigt); }));
     const neuere = erledigt.filter(function (t) { return !istArchiv(t); });
     const aeltere = erledigt.filter(istArchiv);
+    hutZeichnen();
 
     // Im Archiv gibt es keine Zählzeile
     zahlen.hidden = archivModus || !daten.todos.length;
