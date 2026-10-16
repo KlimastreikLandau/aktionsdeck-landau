@@ -22,7 +22,8 @@ var TABELLEN = {
   Posts: ['projekt_id', 'titel', 'plattform', 'format', 'text', 'medien_id', 'veroeffentlichung_am', 'status', 'verantwortlich'],
   Vorlagen_ToDo: ['vorlage_name', 'schritt_text', 'tage_vorher', 'verantwortlich'],
   Protokolle: ['projekt_id', 'datum', 'titel', 'teilnehmende', 'text'],
-  Kommentare: ['projekt_id', 'text']
+  Kommentare: ['projekt_id', 'text'],
+  Learnings: ['projekt_id', 'aktionsart', 'text']
 };
 
 // System-Tabs (über die API nicht direkt änderbar)
