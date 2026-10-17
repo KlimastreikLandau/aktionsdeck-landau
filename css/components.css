@@ -1321,3 +1321,103 @@ p.notiz.erledigt {
 .projekt-gruppe-planung > summary strong { color: #8a5600; }
 .projekt-gruppe-planung > .projekt-teil-body { background: #fff7e8; border-top-color: #c77c00; }
 .projekt-gruppe-planung .projekt-block { border-top-color: #c77c00; }
+
+/* ---- 0.26.0: Etappe 5 (Start als Zentrale) und 4.7.1 ---- */
+
+/* Projekte: Übersicht und Learnings nebeneinander (Handy: untereinander) */
+.projekt-zwei {
+  display: grid;
+  gap: 12px;
+  align-items: start;
+}
+
+.projekt-zwei > * { min-width: 0; }
+
+@media (min-width: 960px) {
+  .projekt-zwei { grid-template-columns: 1fr 1fr; gap: 16px; }
+}
+
+/* Projektname klein unter dem Learning */
+.lern-projekt { font-size: 13px; }
+
+/* Start: Umfragen und Schwarzes Brett */
+.start-extra { margin-bottom: 12px; }
+.start-extra .dash-kachel { margin-bottom: 0; }
+
+.umfrage {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rand);
+}
+
+.umfrage:last-child { border-bottom: 0; }
+
+.umfrage-kopf {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 6px;
+}
+
+.umfrage-titel {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-width: 180px;
+}
+
+.umfrage-option { display: grid; gap: 2px; padding: 4px 0; }
+
+.umfrage-option-zeile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.mitteilung {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--rand);
+  border-left: 6px solid var(--gruppe);
+  border-radius: var(--radius);
+}
+
+.mitteilung.angeheftet { background: var(--gruen-hell); }
+
+.mitteilung-kopf {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.mitteilung p { margin: 6px 0 0; }
+
+/* Kommentare und Pinnwand */
+.start-pinnwand { margin-top: 12px; border-top: 5px solid var(--gruppe); }
+
+.kommentare h3 { margin: 12px 0 6px; }
+.start-pinnwand .kommentare h3 { margin-top: 0; font-size: 18px; }
+
+.kommentar-liste { list-style: none; padding: 0; margin: 8px 0; }
+
+.kommentar {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rand);
+}
+
+.kommentar-form {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  margin: 8px 0;
+}
+
+.kommentar-form .feld { min-height: 64px; }
