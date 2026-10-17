@@ -38,9 +38,12 @@ export function baueMaterialTeil(opt) {
   const pp = ausgeliehenProjekt(d0.ausleihe || []);
   const matById = {};
   (d0.material || []).forEach(function (m) { matById[String(m.id)] = m; });
+  // Nur AKTIVE Projekte zählen für "Auch vorgemerkt für" (Planung nicht)
   const offeneProjekte = {};
   (d0.projekte || []).forEach(function (p) {
-    if (!istAbgeschlossen(p)) offeneProjekte[String(p.id)] = String(p.titel);
+    if ((String(p.status || '').trim() || 'planung') === 'aktiv') {
+      offeneProjekte[String(p.id)] = String(p.titel);
+    }
   });
   const zu = istAbgeschlossen(opt.projekt);
 
