@@ -8,6 +8,7 @@
 import { el, leeren } from './dom.js';
 import { api } from '../api.js';
 import { toast } from './toast.js';
+import { istWahr } from '../schema.js';
 
 function txt(v) {
   return String(v === undefined || v === null ? '' : v).trim();
@@ -55,14 +56,25 @@ export function baueKommentare(opt) {
       return;
     }
     zeilen.forEach(function (k) {
-      const kopf = [txt(k.erstellt_von), zeitKurz(k.erstellt_am)].filter(Boolean).join(' · ');
-      liste.append(el('li', { class: 'kommentar' },
+      const fest = istWahr(k.angeheftet);
+      const kopf = (fest ? '📌 ' : '') +
+        [txt(k.erstellt_von), zeitKurz(k.erstellt_am)].filter(Boolean).join(' · ');
+      const knoepfe = el('div', { class: 'hut-knoepfe' });
+      if (opt.anheftbar) {
+        knoepfe.append(el('button', {
+          class: 'knopf knopf-hell knopf-klein', type: 'button',
+          text: fest ? 'Lösen' : 'Anheften',
+          onclick: function () { anheften(k, !fest); }
+        }));
+      }
+      knoepfe.append(el('button', {
+        class: 'knopf knopf-hell knopf-klein', type: 'button', text: 'Löschen',
+        onclick: function () { loeschen(k); }
+      }));
+      liste.append(el('li', { class: 'kommentar' + (fest ? ' angeheftet' : '') },
         el('span', { class: 'leise', text: kopf }),
         el('span', { class: 'notiz', text: txt(k.text) }),
-        el('button', {
-          class: 'knopf knopf-hell knopf-klein', type: 'button', text: 'Löschen',
-          onclick: function () { loeschen(k); }
-        })
+        knoepfe
       ));
     });
   }
@@ -76,6 +88,10 @@ export function baueKommentare(opt) {
         return String(a.erstellt_am).localeCompare(String(b.erstellt_am));
       });
       zeilen = opt.neuesteZuerst ? passend.reverse() : passend;
+      if (opt.anheftbar) {
+        zeilen = zeilen.filter(function (k) { return istWahr(k.angeheftet); })
+          .concat(zeilen.filter(function (k) { return !istWahr(k.angeheftet); }));
+      }
       if (opt.max && zeilen.length > opt.max) zeilen = zeilen.slice(0, opt.max);
       fehlerText = '';
       laedt = false;
@@ -87,7 +103,19 @@ export function baueKommentare(opt) {
       zeichne();
     }
   }
-
+  
+  async function anheften(k, wert) {
+    try {
+      await api('update', { tabelle: 'Kommentare', id: k.id, daten: { angeheftet: wert } }, opt.token);
+      toast(wert ? 'Angeheftet.' : 'Nicht mehr angeheftet.');
+    } catch (e) {
+      if (opt.ctx.behandleFehler(e)) return;
+      toast(e.message);
+      return;
+    }
+    await laden();
+  }
+  
   async function loeschen(k) {
     if (!window.confirm('Diesen Kommentar wirklich löschen?')) return;
     try {
