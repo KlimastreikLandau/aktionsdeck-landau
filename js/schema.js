@@ -113,6 +113,31 @@ export const SCHEMA = {
     felder: [
       { name: 'text', label: 'Kommentar', typ: 'langtext', pflicht: true }
     ]
+  },
+  Umfragen: {
+    titel: 'Umfragen',
+    felder: [
+      { name: 'frage', label: 'Frage', typ: 'text', pflicht: true },
+      { name: 'optionen', label: 'Antworten (eine pro Zeile, mindestens zwei)', typ: 'langtext', pflicht: true },
+      { name: 'ablauf_am', label: 'Läuft ab am (freiwillig)', typ: 'datum' },
+      { name: 'mehrfach', label: 'Mehrere Antworten erlaubt', typ: 'bool' }
+    ]
+  },
+  Mitteilungen: {
+    titel: 'Mitteilungen',
+    felder: [
+      { name: 'titel', label: 'Titel', typ: 'text', pflicht: true },
+      { name: 'text', label: 'Text', typ: 'langtext' },
+      { name: 'angeheftet', label: 'Oben anheften', typ: 'bool' }
+    ]
+  },
+  Ideen: {
+    titel: 'Aktionsideen',
+    felder: [
+      { name: 'titel', label: 'Idee', typ: 'text', pflicht: true },
+      { name: 'beschreibung', label: 'Beschreibung', typ: 'langtext' },
+      { name: 'aktionsart', label: 'Aktionsart (z. B. Demo, Infostand)', typ: 'text' }
+    ]
   }
 };
 
