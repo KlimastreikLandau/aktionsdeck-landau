@@ -98,6 +98,7 @@ export function baueKommentare(opt) {
       toast(e.code === 'konflikt' ? 'Jemand anderes hat dies gerade geändert.' : e.message);
     }
     await laden();
+    if (opt.beiAenderung) opt.beiAenderung();
   }
 
   form.addEventListener('submit', async function (ev) {
@@ -123,8 +124,9 @@ export function baueKommentare(opt) {
     }
     senden.disabled = false;
     await laden();
+    if (opt.beiAenderung) opt.beiAenderung();
   });
-
+  
   const box = el('div', { class: 'kommentare' }, el('h3', { text: opt.titel || 'Kommentare' }));
   if (opt.neuesteZuerst) box.append(form, fehler, liste);
   else box.append(liste, form, fehler);
