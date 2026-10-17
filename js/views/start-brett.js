@@ -11,8 +11,6 @@ import { toast } from '../ui/toast.js';
 import { SCHEMA, istWahr } from '../schema.js';
 import { datumText } from './todos-rechnen.js';
 
-const MAX_NORMAL = 5;   // so viele nicht angeheftete stehen direkt da, der Rest im Aufklapper
-
 function txt(v) {
   return String(v === undefined || v === null ? '' : v).trim();
 }
@@ -36,7 +34,7 @@ async function anheften(m, wert, opt) {
 
 function formZeigen(m, opt) {
   let fenster = null;
-  const form = baueFormular(SCHEMA.Mitteilungen.felder, m || { angeheftet: false }, {
+  const form = baueFormular(SCHEMA.Mitteilungen.felder, m || { angeheftet: true }, {
     speichernText: m ? 'Speichern' : 'Veröffentlichen',
     onSpeichern: function (d) { return speichern(m, d, fenster, opt); },
     onAbbrechen: function () { fenster.schliessen(); }
@@ -136,15 +134,16 @@ export function zeichneBrett(box, opt) {
       el('h2', { text: 'Schwarzes Brett' })
     )
   );
-  fest.concat(normal.slice(0, MAX_NORMAL)).forEach(function (m) { karte.append(mitteilung(m, opt)); });
+  fest.forEach(function (m) { karte.append(mitteilung(m, opt)); });
 
-  const rest = normal.slice(MAX_NORMAL);
+  // Nicht angeheftete stehen nur im zugeklappten Aufklapper
+  const rest = normal;
   if (rest.length) {
     const d = el('details', { class: 'projekt-teil' });
     d.append(
       el('summary', null,
         el('span', { class: 'teil-pfeil', 'aria-hidden': 'true', text: '▸' }),
-        el('strong', { text: 'Ältere Mitteilungen' }),
+        el('strong', { text: 'Nicht angeheftet' }),
         el('span', { class: 'leise', text: String(rest.length) })
       ),
       el('div', { class: 'projekt-teil-body' },
