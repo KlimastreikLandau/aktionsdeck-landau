@@ -11,6 +11,7 @@ import { zeigeListe } from '../ui/table.js';
 import { zeigeDetail, schliesseDetail } from '../ui/detail.js';
 import { baueFormular } from '../ui/form.js';
 import { toast } from '../ui/toast.js';
+import { baueKommentare } from '../ui/kommentare.js';
 import { getName } from '../store.js';
 import { SCHEMA, istWahr } from '../schema.js';
 import { zeitText } from './material-rechnen.js';
@@ -78,6 +79,7 @@ export async function render(container, ctx) {
   let meta = null;
   let offline = false;
   let zaehlText = '';
+  let kw = null;            // Kommentar-Fenster des offenen ToDos (bleibt beim Aktualisieren erhalten)
   const arbeitet = {};
 
   const zahlen = el('p', { class: 'dash-zahlen' });
@@ -225,7 +227,21 @@ export async function render(container, ctx) {
   }
 
   // ---- Detail ----
-
+  // Gleiches ToDo = gleiches Element: so geht ein angefangener Kommentar beim Aktualisieren nicht verloren
+  function kommentarFuer(t) {
+    if (!kw || kw.id !== String(t.id)) {
+      kw = {
+        id: String(t.id),
+        w: baueKommentare({
+          ctx: ctx, token: s.token, art: 'todo', bezugId: t.id, projektId: t.projekt_id
+        })
+      };
+    } else {
+      kw.w.laden();
+    }
+    return kw.w.el;
+  }
+  
   function detailZeigen(id, neu) {
     const t = daten.todos.find(function (x) { return String(x.id) === String(id); });
     if (!t) {
@@ -270,7 +286,8 @@ export async function render(container, ctx) {
         ['Angelegt am', t.erstellt_am ? zeitText(t.erstellt_am) : ''],
         ['Zuletzt geändert', t.geaendert_von && t.geaendert_am
           ? t.geaendert_von + ', ' + zeitText(t.geaendert_am) : '']
-      ])
+      ]),
+      kommentarFuer(t)
     );
     zeigeDetail(ctx.detail, kurz(t.text, 60), inhalt, function () { offenId = null; }, neu);
   }
