@@ -90,7 +90,9 @@ function eingabe(f, wert, vorschlaege, fotoFn) {
       const id = 'vorschlag-' + f.name;
       feld.setAttribute('list', id);
       extra = el('datalist', { id: id });
-      vorschlaege.forEach(function (v) { extra.append(el('option', { value: v })); });
+      vorschlaege.slice(0, 30).forEach(function (v) {
+        extra.append(el('option', { value: String(v).slice(0, 40) }));
+      });
     }
   }
   feld.value = text(wert);
