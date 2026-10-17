@@ -13,7 +13,7 @@ import { fortschrittsBalken } from '../ui/balken.js';
 import { toast } from '../ui/toast.js';
 import { baueKommentare } from '../ui/kommentare.js';
 import { zeichneUmfragen, zeichneArchiv, neueUmfrage, anzahlBeendet } from './start-umfragen.js';
-import { zeichneBrett, neueMitteilung } from './start-brett.js';
+import { zeichneBrett, neueMitteilung, mitteilungAus } from './start-brett.js';
 import { getName } from '../store.js';
 import { istWahr } from '../schema.js';
 import { zeitText } from './material-rechnen.js';
@@ -108,7 +108,7 @@ export async function render(container, ctx) {
   archivBox.hidden = true;
 
   const archivKnopf = el('button', {
-    class: 'knopf knopf-hell', type: 'button', text: 'Umfrage-Archiv',
+    class: 'knopf knopf-hell', type: 'button', text: 'Archiv',
     onclick: function () { archivSchalten(true); }
   });
   archivKnopf.hidden = true;
@@ -133,7 +133,10 @@ export async function render(container, ctx) {
     platzhalter: 'Notiz oder Kommentar für die Gruppe …',
     leerText: 'Noch nichts angepinnt.',
     neuesteZuerst: true,
-    anheftbar: true,
+    alsMitteilung: function (k) {
+      const t = String(k.text || '').trim();
+      mitteilungAus(extraOpt(), t.replace(/\s+/g, ' ').slice(0, 60), t);
+    },
     max: 30
   });
   
@@ -322,7 +325,7 @@ export async function render(container, ctx) {
     extraRaster.hidden = umfrageBox.hidden && brettBox.hidden;
     const n = anzahlBeendet(extraDaten.umfragen);
     archivKnopf.hidden = !n;
-    archivKnopf.textContent = 'Umfrage-Archiv (' + n + ')';
+    archivKnopf.textContent = 'Archiv (' + n + ')';
     if (!archivBox.hidden) zeichneArchiv(archivListe, opt);
   }
 
