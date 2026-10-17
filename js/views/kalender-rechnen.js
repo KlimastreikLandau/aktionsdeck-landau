@@ -188,7 +188,8 @@ export function baueTermine(daten, opt) {
   // 3) Projekte: Aktionsdatum, Deadline, Balken
   projekte.forEach(function (p) {
     const pid = String(p.id);
-    if (!o.abgeschlossene && !projektOffen[pid]) return;
+    const st = txt(p.status) || 'planung';
+    if (!o.abgeschlossene && st !== 'aktiv') return;
     const titel = txt(p.titel);
     const aktion = normDatum(p.aktionsdatum);
     const deadline = normDatum(p.deadline);
