@@ -11,6 +11,9 @@ import { ladeMitCache, cacheSet } from '../cache.js';
 import { gruppenLogo } from '../ui/logo.js';
 import { fortschrittsBalken } from '../ui/balken.js';
 import { toast } from '../ui/toast.js';
+import { baueKommentare } from '../ui/kommentare.js';
+import { zeichneUmfragen } from './start-umfragen.js';
+import { zeichneBrett } from './start-brett.js';
 import { getName } from '../store.js';
 import { istWahr } from '../schema.js';
 import { zeitText } from './material-rechnen.js';
@@ -33,10 +36,7 @@ const projektOffen = {};
 
 const KACHELN = [
   { titel: 'Projekte', projekte: true },
-  { titel: 'ToDos', todos: true },
-  { titel: 'Material', hinweis: 'Bestand und Ausleihe' },
-  { titel: 'Posts', hinweis: 'Kommt mit Etappe 5' },
-  { titel: 'Kalender', hinweis: 'Kommt mit Etappe 5' }
+  { titel: 'ToDos', todos: true }
 ];
 
 // Planung = Vorbereitung (auch wenn der Status leer ist)
@@ -55,6 +55,8 @@ export async function render(container, ctx) {
   let letzte = null;        // { daten, meta } der ToDos
   let projektDaten = null;  // { projekte }
   let projektFehler = '';
+  let extraDaten = null;    // { umfragen, antworten, mitteilungen }
+  let extraJson = '';
   let offline = false;
   const arbeitet = {};
 
@@ -88,11 +90,28 @@ export async function render(container, ctx) {
     projektListe
   );
 
+  const umfrageBox = el('div', { class: 'start-extra' });
+  const brettBox = el('div', { class: 'start-extra' });
+  const pinnwand = baueKommentare({
+    ctx: ctx,
+    token: s.token,
+    art: 'pinnwand',
+    bezugId: '',
+    projektId: '',
+    titel: 'Pinnwand',
+    platzhalter: 'Notiz oder Kommentar für die Gruppe …',
+    leerText: 'Noch nichts angepinnt.',
+    neuesteZuerst: true,
+    max: 30
+  });
+  
   container.append(el('div', { class: 'seite' },
     el('div', { class: 'dash-kopf' },
       gruppenLogo(s.kurzname, 'dash-logo'),
       el('h1', { text: 'Hallo ' + (getName() || '') })
     ),
+    umfrageBox,
+    brettBox,
     el('div', { class: 'dash-raster' },
       ...KACHELN.map(function (k) {
         if (k.projekte) return projektKachel;
@@ -102,7 +121,8 @@ export async function render(container, ctx) {
           el('p', { class: 'leise', text: k.hinweis })
         );
       })
-    )
+    ),
+    el('section', { class: 'karte start-pinnwand' }, pinnwand.el)
   ));
 
   // ---- Projekte ----
@@ -119,13 +139,11 @@ export async function render(container, ctx) {
       projektListe.append(el('p', { class: 'leise', text: 'Lade Projekte …' }));
       return;
     }
-    const sortiert = sortiereProjekte(
-      projektDaten.projekte.filter(function (p) { return !istAbgeschlossen(p); }),
+    // Nur laufende Projekte (Aktiv). Projekte in Planung stehen nicht auf dem Start.
+    const laufend = sortiereProjekte(
+      projektDaten.projekte.filter(function (p) { return !istAbgeschlossen(p) && !istPlanung(p); }),
       false
     );
-    // Aktiv zuerst, danach Planung (Reihenfolge innerhalb bleibt)
-    const laufend = sortiert.filter(function (p) { return !istPlanung(p); })
-      .concat(sortiert.filter(istPlanung));
     if (!laufend.length) {
       projektListe.append(el('p', { class: 'leise', text: 'Noch kein laufendes Projekt.' }));
       return;
@@ -158,8 +176,7 @@ export async function render(container, ctx) {
       const blockEl = el('div', { class: 'dash-projekt-block' },
         el('a', { class: 'dash-projekt', href: href },
           el('span', { class: 'dash-projekt-titel' },
-            el('strong', { text: String(p.titel) }),
-            istPlanung(p) ? el('span', { class: 'status-marke status-planung', text: 'Planung' }) : null
+            el('strong', { text: String(p.titel) })
           ),
           termine ? el('span', { class: 'leise', text: termine }) : null,
           fortschrittsBalken(letzte ? f.prozent : 0, letzte ? fortschrittText(f) : 'Lade ToDos …')
@@ -235,6 +252,57 @@ export async function render(container, ctx) {
     }
   }
 
+  // ---- Umfragen und Schwarzes Brett ----
+
+  function zeichneExtra() {
+    if (!extraDaten) return;
+    const json = JSON.stringify(extraDaten);
+    if (json === extraJson) return;   // nichts Neues: angefangene Auswahl nicht wegwischen
+    extraJson = json;
+    const opt = {
+      ctx: ctx,
+      token: s.token,
+      umfragen: extraDaten.umfragen,
+      antworten: extraDaten.antworten,
+      mitteilungen: extraDaten.mitteilungen,
+      neuLaden: function () { return ladeExtra(false); }
+    };
+    zeichneUmfragen(umfrageBox, opt);
+    zeichneBrett(brettBox, opt);
+  }
+
+  async function ladeExtra(zuerstCache) {
+    try {
+      await ladeMitCache(
+        s.gruppe_id + ':startextra',
+        async function () {
+          const r = await api('listMehrere', {
+            tabellen: ['Umfragen', 'Umfrage_Antworten', 'Mitteilungen']
+          }, s.token);
+          const t = (r && r.tabellen) || {};
+          return {
+            umfragen: t.Umfragen || [],
+            antworten: t.Umfrage_Antworten || [],
+            mitteilungen: t.Mitteilungen || []
+          };
+        },
+        function (daten) {
+          extraDaten = daten;
+          zeichneExtra();
+        },
+        zuerstCache
+      );
+    } catch (e) {
+      if (ctx.behandleFehler(e)) return;
+      if (!extraDaten) {
+        leeren(umfrageBox);
+        umfrageBox.append(el('p', {
+          class: 'fehler', text: 'Umfragen und Schwarzes Brett konnten nicht geladen werden: ' + e.message
+        }));
+      }
+    }
+  }
+  
   // ---- Abhaken (ohne Konfliktprüfung) ----
 
   async function abhaken(t, wert) {
@@ -383,7 +451,7 @@ export async function render(container, ctx) {
   // Während ein Häkchen noch gespeichert wird, wird nicht aktualisiert
   ctx.setzeRefresh(function () {
     if (Object.keys(arbeitet).length) return Promise.resolve();
-    return Promise.all([laden(false), ladeProjekte(false)]);
+    return Promise.all([laden(false), ladeProjekte(false), ladeExtra(false), pinnwand.laden()]);
   });
-  await Promise.all([laden(true), ladeProjekte(true)]);
+  await Promise.all([laden(true), ladeProjekte(true), ladeExtra(true)]);
 }
