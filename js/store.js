@@ -44,3 +44,12 @@ export function getGruppenCache() {
 export function setGruppenCache(liste) {
   try { localStorage.setItem(GRUPPEN_KEY, JSON.stringify(liste)); } catch (e) { /* ignorieren */ }
 }
+
+// Zeitpunkt des letzten Besuchs ("Was ist neu?"), pro Gerät und Gruppe
+export function getLetzterBesuch(gruppeId) {
+  try { return localStorage.getItem('aktionsdeck_besuch_' + gruppeId) || ''; } catch (e) { return ''; }
+}
+
+export function setLetzterBesuch(gruppeId, iso) {
+  try { localStorage.setItem('aktionsdeck_besuch_' + gruppeId, String(iso)); } catch (e) { /* ignorieren */ }
+}
