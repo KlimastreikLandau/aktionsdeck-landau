@@ -4,7 +4,7 @@
 
 import { el } from './dom.js';
 
-export function zeigeFenster(titel, inhalt, beiZu) {
+export function zeigeFenster(titel, inhalt, beiZu, optionen) {
   const vorher = document.activeElement;
   const hintergrund = el('div', { class: 'modal' });
   let offen = true;
@@ -32,6 +32,11 @@ export function zeigeFenster(titel, inhalt, beiZu) {
     inhalt
   );
   hintergrund.append(box);
+  if (optionen && optionen.aussenKlick) {
+    hintergrund.addEventListener('click', function (ev) {
+      if (ev.target === hintergrund) zu();
+    });
+  }
   document.addEventListener('keydown', taste);
   document.body.append(hintergrund);
 
