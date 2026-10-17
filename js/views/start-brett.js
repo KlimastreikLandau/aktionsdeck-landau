@@ -1,6 +1,6 @@
 // js/views/start-brett.js
-// Schwarzes Brett auf dem Start: Mitteilungen der Gruppe (z. B. Plenumszeit).
-// Wichtige lassen sich oben anheften. Tab Mitteilungen: titel, text, angeheftet.
+// Schwarzes Brett auf dem Start: angeheftete Mitteilungen der Gruppe (z. B. Plenumszeit).
+// Nicht angeheftete stehen im Archiv (mit Suche und Anheften). Tab Mitteilungen: titel, text, angeheftet.
 // opt: { ctx, token, mitteilungen, neuLaden() -> Promise }
 
 import { el, leeren } from '../ui/dom.js';
@@ -15,8 +15,26 @@ function txt(v) {
   return String(v === undefined || v === null ? '' : v).trim();
 }
 
+function norm(v) {
+  return txt(v).replace(/\s+/g, ' ').toLowerCase();
+}
+
 function neuesteZuerst(a, b) {
   return String(b.erstellt_am || '').localeCompare(String(a.erstellt_am || ''));
+}
+
+// Gibt es schon eine Mitteilung mit diesem Text? (angeheftete zuerst)
+export function findeMitteilung(liste, text) {
+  const n = norm(text);
+  if (!n) return null;
+  const treffer = (liste || []).filter(function (m) {
+    return norm(m.text) === n || (!norm(m.text) && norm(m.titel) === n);
+  });
+  return treffer.find(function (m) { return istWahr(m.angeheftet); }) || treffer[0] || null;
+}
+
+export function anzahlNichtAngeheftet(liste) {
+  return (liste || []).filter(function (m) { return !istWahr(m.angeheftet); }).length;
 }
 
 async function anheften(m, wert, opt) {
@@ -31,12 +49,13 @@ async function anheften(m, wert, opt) {
 }
 
 // ---- Anlegen, Ändern, Löschen (m = null heißt neu) ----
+// nachher: wird nach dem Anlegen einmal aufgerufen (z. B. um einen Kommentar zu markieren)
 
-function formZeigen(m, opt, vorgabe) {
+function formZeigen(m, opt, vorgabe, nachher) {
   let fenster = null;
   const form = baueFormular(SCHEMA.Mitteilungen.felder, m || vorgabe || { angeheftet: true }, {
     speichernText: m ? 'Speichern' : 'Veröffentlichen',
-    onSpeichern: function (d) { return speichern(m, d, fenster, opt); },
+    onSpeichern: function (d) { return speichern(m, d, fenster, opt, nachher); },
     onAbbrechen: function () { fenster.schliessen(); }
   });
   const inhalt = el('div', null, form);
@@ -51,11 +70,12 @@ function formZeigen(m, opt, vorgabe) {
   fenster = zeigeFenster(m ? 'Mitteilung bearbeiten' : 'Neue Mitteilung', inhalt);
 }
 
-async function speichern(m, d, fenster, opt) {
+async function speichern(m, d, fenster, opt, nachher) {
   try {
     if (!m) {
       await api('create', { tabelle: 'Mitteilungen', daten: d }, opt.token);
       toast('Mitteilung veröffentlicht.');
+      if (nachher) await nachher();
     } else {
       const r = await api('update', {
         tabelle: 'Mitteilungen', id: m.id, daten: d, bekannt: m.geaendert_am
@@ -120,17 +140,12 @@ function mitteilung(m, opt) {
     txt(m.text) ? el('p', { class: 'notiz', text: txt(m.text) }) : null
   );
 }
-// Suche und Aufklapper bleiben beim Neuzeichnen erhalten
-let brettSuche = '';
-let brettAuf = false;
-const MAX_ALT = 10;   // so viele nicht angeheftete stehen im Aufklapper (der Rest über die Suche)
 
+// Kachel auf dem Start: nur angeheftete. Gibt es keine, bleibt die Kachel versteckt.
 export function zeichneBrett(box, opt) {
   leeren(box);
   const fest = opt.mitteilungen.filter(function (m) { return istWahr(m.angeheftet); }).sort(neuesteZuerst);
-  const normal = opt.mitteilungen.filter(function (m) { return !istWahr(m.angeheftet); }).sort(neuesteZuerst);
-
-  box.hidden = !fest.length && !normal.length;
+  box.hidden = !fest.length;
   if (box.hidden) return;
 
   const karte = el('section', { class: 'karte dash-kachel' },
@@ -138,56 +153,54 @@ export function zeichneBrett(box, opt) {
       el('h2', { text: 'Schwarzes Brett' })
     )
   );
-  if (!fest.length) {
-    karte.append(el('p', { class: 'leise', text: 'Nichts angeheftet.' }));
-  }
   fest.forEach(function (m) { karte.append(mitteilung(m, opt)); });
-
-  // Nicht angeheftet: zugeklappt, die neuesten 10, alle über die Suche
-  if (normal.length) {
-    const liste = el('div');
-    const suche = el('input', {
-      class: 'feld', type: 'search', placeholder: 'Nicht angeheftete durchsuchen …',
-      'aria-label': 'Nicht angeheftete Mitteilungen durchsuchen'
-    });
-    suche.value = brettSuche;
-
-    function fuellen() {
-      leeren(liste);
-      brettSuche = suche.value;
-      const q = suche.value.trim().toLowerCase();
-      const treffer = normal.filter(function (m) {
-        return !q || (txt(m.titel) + ' ' + txt(m.text)).toLowerCase().indexOf(q) >= 0;
-      });
-      const gezeigt = q ? treffer : treffer.slice(0, MAX_ALT);
-      gezeigt.forEach(function (m) { liste.append(mitteilung(m, opt)); });
-      if (!treffer.length) {
-        liste.append(el('p', { class: 'leise', text: 'Nichts gefunden.' }));
-      } else if (!q && treffer.length > MAX_ALT) {
-        liste.append(el('p', {
-          class: 'leise',
-          text: '… und ' + (treffer.length - MAX_ALT) + ' ältere. Mit der Suche findest du sie.'
-        }));
-      }
-    }
-
-    suche.addEventListener('input', fuellen);
-    fuellen();
-
-    const d = el('details', { class: 'projekt-teil' });
-    d.open = brettAuf;
-    d.addEventListener('toggle', function () { brettAuf = d.open; });
-    d.append(
-      el('summary', null,
-        el('span', { class: 'teil-pfeil', 'aria-hidden': 'true', text: '▸' }),
-        el('strong', { text: 'Nicht angeheftet' }),
-        el('span', { class: 'leise', text: String(normal.length) })
-      ),
-      el('div', { class: 'projekt-teil-body' }, suche, liste)
-    );
-    karte.append(d);
-  }
   box.append(karte);
+}
+
+// Archiv: nicht angeheftete Mitteilungen mit Suche (bleibt beim Neuzeichnen erhalten)
+let archivSuche = '';
+const MAX_ALT = 10;   // so viele stehen ohne Suche da (der Rest über die Suche)
+
+export function zeichneBrettArchiv(box, opt) {
+  leeren(box);
+  const normal = opt.mitteilungen.filter(function (m) { return !istWahr(m.angeheftet); }).sort(neuesteZuerst);
+  if (!normal.length) {
+    box.append(el('p', {
+      class: 'leise',
+      text: 'Es gibt keine nicht angehefteten Mitteilungen. Was du löst, steht hier.'
+    }));
+    return;
+  }
+
+  const liste = el('div');
+  const suche = el('input', {
+    class: 'feld', type: 'search', placeholder: 'Mitteilungen durchsuchen …',
+    'aria-label': 'Nicht angeheftete Mitteilungen durchsuchen'
+  });
+  suche.value = archivSuche;
+
+  function fuellen() {
+    leeren(liste);
+    archivSuche = suche.value;
+    const q = suche.value.trim().toLowerCase();
+    const treffer = normal.filter(function (m) {
+      return !q || (txt(m.titel) + ' ' + txt(m.text)).toLowerCase().indexOf(q) >= 0;
+    });
+    const gezeigt = q ? treffer : treffer.slice(0, MAX_ALT);
+    gezeigt.forEach(function (m) { liste.append(mitteilung(m, opt)); });
+    if (!treffer.length) {
+      liste.append(el('p', { class: 'leise', text: 'Nichts gefunden.' }));
+    } else if (!q && treffer.length > MAX_ALT) {
+      liste.append(el('p', {
+        class: 'leise',
+        text: '… und ' + (treffer.length - MAX_ALT) + ' ältere. Mit der Suche findest du sie.'
+      }));
+    }
+  }
+
+  suche.addEventListener('input', fuellen);
+  fuellen();
+  box.append(suche, liste);
 }
 
 // Für den Knopf oben auf dem Start
@@ -195,7 +208,8 @@ export function neueMitteilung(opt) {
   formZeigen(null, opt);
 }
 
-// Aus einem Pinnwand-Kommentar eine angeheftete Mitteilung machen (Formular ist vorausgefüllt)
-export function mitteilungAus(opt, titel, text) {
-  formZeigen(null, opt, { titel: titel, text: text, angeheftet: true });
+// Aus einem Pinnwand-Kommentar eine angeheftete Mitteilung machen (Formular ist vorausgefüllt).
+// nachher wird nach dem Anlegen aufgerufen.
+export function mitteilungAus(opt, titel, text, nachher) {
+  formZeigen(null, opt, { titel: titel, text: text, angeheftet: true }, nachher);
 }
