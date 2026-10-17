@@ -1498,3 +1498,16 @@ p.notiz.erledigt {
   border-radius: var(--radius);
   background: var(--gruen-hell);
 }
+
+/* ---- 0.26.3: Start-Knöpfe am Handy in einer Zeile ---- */
+@media (max-width: 599px) {
+  .dash-kopf .kopf-knoepfe { flex-wrap: nowrap; gap: 6px; }
+
+  .dash-kopf .kopf-knoepfe .knopf {
+    flex: 1;
+    min-width: 0;
+    padding: 0 6px;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+}
