@@ -74,6 +74,8 @@ export function baueKommentare(opt) {
         knoepfe
       ));
     });
+  }
+
   async function laden() {
     try {
       const r = await api('list', { tabelle: 'Kommentare' }, opt.token);
