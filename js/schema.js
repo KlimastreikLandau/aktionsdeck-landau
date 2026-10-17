@@ -121,7 +121,8 @@ export const SCHEMA = {
       { name: 'frage', label: 'Frage', typ: 'text', pflicht: true },
       { name: 'optionen', label: 'Antworten (eine pro Zeile, mindestens zwei)', typ: 'langtext', pflicht: true },
       { name: 'ablauf_am', label: 'Frist (freiwillig, beendet wird von Hand)', typ: 'datum' },
-      { name: 'mehrfach', label: 'Mehrere Antworten erlaubt', typ: 'bool' }
+      { name: 'mehrfach', label: 'Mehrere Antworten erlaubt', typ: 'bool' },
+      { name: 'namentlich', label: 'Namentlich abstimmen (Namen stehen nach dem Beenden in der Auswertung)', typ: 'bool' }
     ]
   },
   Mitteilungen: {
@@ -129,7 +130,7 @@ export const SCHEMA = {
     felder: [
       { name: 'titel', label: 'Titel', typ: 'text', pflicht: true },
       { name: 'text', label: 'Text', typ: 'langtext' },
-      { name: 'angeheftet', label: 'Oben anheften', typ: 'bool' }
+      { name: 'angeheftet', label: 'Angeheftet (nur angeheftete stehen direkt auf dem Start)', typ: 'bool' }
     ]
   },
   Ideen: {
