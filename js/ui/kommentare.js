@@ -8,6 +8,7 @@
 import { el, leeren } from './dom.js';
 import { api } from '../api.js';
 import { toast } from './toast.js';
+import { istWahr } from '../schema.js';
 
 function txt(v) {
   return String(v === undefined || v === null ? '' : v).trim();
@@ -55,7 +56,11 @@ export function baueKommentare(opt) {
       return;
     }
     zeilen.forEach(function (k) {
-      const kopf = [txt(k.erstellt_von), zeitKurz(k.erstellt_am)].filter(Boolean).join(' · ');
+      const kopf = [
+        txt(k.erstellt_von),
+        zeitKurz(k.erstellt_am),
+        opt.alsMitteilung && istWahr(k.angeheftet) ? '📌 schon als Mitteilung' : ''
+      ].filter(Boolean).join(' · ');
       const knoepfe = el('div', { class: 'hut-knoepfe' });
       // Nur wenn der Aufrufer es erlaubt (Pinnwand auf dem Start)
       if (opt.alsMitteilung) {
