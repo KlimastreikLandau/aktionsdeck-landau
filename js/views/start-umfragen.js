@@ -440,31 +440,57 @@ export function zeichneUmfragen(box, opt) {
   ));
 }
 
-// Archiv: beendete Umfragen, einzeln aufklappbar
+// Archiv: beendete Umfragen mit Suche, einzeln aufklappbar (Suchtext bleibt beim Neuzeichnen erhalten)
+let archivSucheU = '';
+
 export function zeichneArchiv(box, opt) {
   leeren(box);
-  const liste = opt.holeDaten().umfragen.filter(beendet).sort(nachBeendet);
-  if (!liste.length) {
+  const alle = opt.holeDaten().umfragen.filter(beendet).sort(nachBeendet);
+  if (!alle.length) {
     box.append(el('p', { class: 'leise', text: 'Das Archiv ist leer. Beendete Umfragen stehen hier.' }));
     return;
   }
-  liste.forEach(function (u) {
-    const id = String(u.id);
-    const d = el('details', { class: 'projekt-teil' });
-    if (archivOffen[id]) d.open = true;
-    d.addEventListener('toggle', function () {
-      if (d.open) archivOffen[id] = true;
-      else delete archivOffen[id];
-    });
-    const n = stimmenVon(u, opt.holeDaten().antworten).length;
-    d.append(
-      el('summary', null,
-        el('span', { class: 'teil-pfeil', 'aria-hidden': 'true', text: '▸' }),
-        el('strong', { text: txt(u.frage) }),
-        el('span', { class: 'leise', text: n + (n === 1 ? ' Person' : ' Personen') + ' · ' + fristText(u) })
-      ),
-      el('div', { class: 'projekt-teil-body' }, umfrageBlock(u, opt, null))
-    );
-    box.append(d);
+
+  const liste = el('div');
+  const suche = el('input', {
+    class: 'feld', type: 'search', placeholder: 'Umfragen durchsuchen …',
+    'aria-label': 'Beendete Umfragen durchsuchen'
   });
+  suche.value = archivSucheU;
+
+  function fuellen() {
+    leeren(liste);
+    archivSucheU = suche.value;
+    const q = suche.value.trim().toLowerCase();
+    const treffer = alle.filter(function (u) {
+      return !q || (txt(u.frage) + ' ' + optionenVon(u).join(' ')).toLowerCase().indexOf(q) >= 0;
+    });
+    if (!treffer.length) {
+      liste.append(el('p', { class: 'leise', text: 'Nichts gefunden.' }));
+      return;
+    }
+    treffer.forEach(function (u) {
+      const id = String(u.id);
+      const d = el('details', { class: 'projekt-teil' });
+      if (archivOffen[id]) d.open = true;
+      d.addEventListener('toggle', function () {
+        if (d.open) archivOffen[id] = true;
+        else delete archivOffen[id];
+      });
+      const n = stimmenVon(u, opt.holeDaten().antworten).length;
+      d.append(
+        el('summary', null,
+          el('span', { class: 'teil-pfeil', 'aria-hidden': 'true', text: '▸' }),
+          el('strong', { text: txt(u.frage) }),
+          el('span', { class: 'leise', text: n + (n === 1 ? ' Person' : ' Personen') + ' · ' + fristText(u) })
+        ),
+        el('div', { class: 'projekt-teil-body' }, umfrageBlock(u, opt, null))
+      );
+      liste.append(d);
+    });
+  }
+
+  suche.addEventListener('input', fuellen);
+  fuellen();
+  box.append(suche, liste);
 }
