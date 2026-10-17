@@ -133,6 +133,7 @@ export async function render(container, ctx) {
     platzhalter: 'Notiz oder Kommentar für die Gruppe …',
     leerText: 'Noch nichts angepinnt.',
     neuesteZuerst: true,
+    anheftbar: true,
     max: 30
   });
   
