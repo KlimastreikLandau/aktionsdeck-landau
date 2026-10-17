@@ -121,6 +121,19 @@ function zeile(opt, r, kopf) {
   );
 }
 
+// Zeile in der Übersicht: Learning-Text fett, Projektname klein darunter
+function zeileUebersicht(opt, r, projektName) {
+  return el('li', { class: 'dash-zeile' },
+    el('button', {
+      class: 'dash-todo pt-todo', type: 'button',
+      onclick: function () { formZeigen(opt, r, txt(r.projekt_id)); }
+    },
+      el('strong', { class: 'notiz', text: txt(r.text) }),
+      el('span', { class: 'leise lern-projekt', text: projektName })
+    )
+  );
+}
+
 function aufklapper(opt, titel, info, body) {
   const teil = el('details', { class: 'projekt-teil' });
   if (opt.offen) teil.open = true;
@@ -187,7 +200,7 @@ export function baueLearningUebersicht(opt) {
     body.append(
       el('h3', { class: 'teil-titel-klein', text: g.name + ' (' + g.liste.length + ')' }),
       el('ul', { class: 'dash-todo-liste' }, ...g.liste.map(function (r) {
-        return zeile(opt, r, titel[txt(r.projekt_id)] || 'Ohne Projekt');
+        return zeileUebersicht(opt, r, titel[txt(r.projekt_id)] || 'Ohne Projekt');
       }))
     );
   });
