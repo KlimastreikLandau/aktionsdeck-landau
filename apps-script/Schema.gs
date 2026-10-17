@@ -22,9 +22,9 @@ var TABELLEN = {
   Posts: ['projekt_id', 'titel', 'plattform', 'format', 'text', 'medien_id', 'veroeffentlichung_am', 'status', 'verantwortlich'],
   Vorlagen_ToDo: ['vorlage_name', 'schritt_text', 'tage_vorher', 'verantwortlich'],
   Protokolle: ['projekt_id', 'datum', 'titel', 'teilnehmende', 'text'],
-  Kommentare: ['projekt_id', 'bezug_art', 'bezug_id', 'text'],
+  Kommentare: ['projekt_id', 'bezug_art', 'bezug_id', 'text', 'angeheftet'],
   Learnings: ['projekt_id', 'aktionsart', 'text'],
-  Umfragen: ['frage', 'optionen', 'ablauf_am', 'mehrfach', 'beendet'],
+  Umfragen: ['frage', 'optionen', 'ablauf_am', 'mehrfach', 'beendet', 'namentlich'],
   Umfrage_Antworten: ['umfrage_id', 'person', 'auswahl'],
   Mitteilungen: ['titel', 'text', 'angeheftet'],
   Ideen: ['titel', 'beschreibung', 'aktionsart', 'projekt_id']
@@ -44,7 +44,7 @@ var NUR_ANHAENGEN = ['Ausleihe'];
 // Spaltentypen: alles andere ist Text
 var ZAHL_SPALTEN = ['anzahl', 'menge', 'einzelpreis', 'betrag_geplant',
                     'betrag_tatsaechlich', 'budget_geplant', 'sortierung', 'tage_vorher'];
-var BOOL_SPALTEN = ['aktiv', 'geloescht', 'erledigt', 'beschafft', 'bezahlt', 'mehrfach', 'angeheftet', 'beendet'];
+var BOOL_SPALTEN = ['aktiv', 'geloescht', 'erledigt', 'beschafft', 'bezahlt', 'mehrfach', 'angeheftet', 'beendet', 'namentlich'];
 
 function spaltenTyp(sp) {
   if (ZAHL_SPALTEN.indexOf(sp) >= 0) return 'zahl';
