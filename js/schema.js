@@ -140,6 +140,22 @@ export const SCHEMA = {
       { name: 'beschreibung', label: 'Beschreibung', typ: 'langtext' },
       { name: 'aktionsart', label: 'Aktionsart (z. B. Demo, Infostand)', typ: 'text' }
     ]
+  },
+  Veranstaltungen: {
+    titel: 'Veranstaltungen',
+    felder: [
+      { name: 'titel', label: 'Titel', typ: 'text', pflicht: true },
+      { name: 'art', label: 'Art (intern = nur Gruppe, extern = nach außen)', typ: 'auswahl', optionen: ['intern', 'extern'], pflicht: true },
+      { name: 'datum', label: 'Datum (erster Tag)', typ: 'datum', pflicht: true },
+      { name: 'datum_ende', label: 'Letzter Tag (nur bei mehreren Tagen)', typ: 'datum' },
+      { name: 'zeit_von', label: 'Uhrzeit von', typ: 'zeit' },
+      { name: 'zeit_bis', label: 'Uhrzeit bis', typ: 'zeit' },
+      { name: 'ort', label: 'Ort', typ: 'text' },
+      { name: 'beschreibung', label: 'Beschreibung', typ: 'langtext' },
+      { name: 'veranstalter', label: 'Veranstalter (leer = unsere Gruppe)', typ: 'text' },
+      { name: 'link', label: 'Link (https://…)', typ: 'text' },
+      { name: 'oeffentlich', label: 'Öffentlich (nur bei extern: erscheint ohne PIN auf der Termine-Seite)', typ: 'bool' }
+    ]
   }
 };
 
