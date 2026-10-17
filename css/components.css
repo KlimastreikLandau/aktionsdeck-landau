@@ -1460,3 +1460,41 @@ p.notiz.erledigt {
   .dash-kopf .kopf-knoepfe { margin-left: 0; width: 100%; }
   .projekt-aktionen { margin-left: 0; width: 100%; flex-wrap: wrap; }
 }
+
+/* ---- 0.26.2: Umfragen als farbiger Kasten, angeheftete Kommentare ---- */
+
+/* Umfrage-Zeile: leicht grün, heute = orange, überfällig = rot (ganzer Kasten) */
+.umfrage-zeile {
+  margin: 8px 0;
+  padding: 4px 8px 4px 0;
+  border: 1px solid var(--rand);
+  border-left: 6px solid var(--gruppe);
+  border-radius: var(--radius);
+  background: var(--gruen-hell);
+}
+
+.umfrage-zeile.heute {
+  background: #fff7e8;
+  border-color: #e8c98a;
+  border-left-color: #c77c00;
+}
+
+.umfrage-zeile.ueberfaellig {
+  background: #fdecea;
+  border-color: #e3b1ab;
+  border-left-color: #b3261e;
+}
+
+.umfrage-zeile .dash-todo { background: none; }
+
+/* Ergebnis einer beendeten Umfrage: schlichter Text */
+.umfrage-option strong { font-weight: 600; }
+
+/* Angeheftete Kommentare in der Pinnwand */
+.kommentar.angeheftet {
+  padding: 8px 10px;
+  border: 1px solid var(--rand);
+  border-left: 6px solid var(--gruppe);
+  border-radius: var(--radius);
+  background: var(--gruen-hell);
+}
