@@ -27,7 +27,9 @@ var TABELLEN = {
   Umfragen: ['frage', 'optionen', 'ablauf_am', 'mehrfach', 'beendet', 'namentlich'],
   Umfrage_Antworten: ['umfrage_id', 'person', 'auswahl'],
   Mitteilungen: ['titel', 'text', 'angeheftet'],
-  Ideen: ['titel', 'beschreibung', 'aktionsart', 'projekt_id']
+  Ideen: ['titel', 'beschreibung', 'aktionsart', 'projekt_id'],
+  Veranstaltungen: ['titel', 'art', 'datum', 'datum_ende', 'zeit_von', 'zeit_bis', 'ort',
+                    'beschreibung', 'veranstalter', 'link', 'oeffentlich']
 };
 
 // System-Tabs (über die API nicht direkt änderbar)
@@ -44,7 +46,7 @@ var NUR_ANHAENGEN = ['Ausleihe'];
 // Spaltentypen: alles andere ist Text
 var ZAHL_SPALTEN = ['anzahl', 'menge', 'einzelpreis', 'betrag_geplant',
                     'betrag_tatsaechlich', 'budget_geplant', 'sortierung', 'tage_vorher'];
-var BOOL_SPALTEN = ['aktiv', 'geloescht', 'erledigt', 'beschafft', 'bezahlt', 'mehrfach', 'angeheftet', 'beendet', 'namentlich'];
+var BOOL_SPALTEN = ['aktiv', 'geloescht', 'erledigt', 'beschafft', 'bezahlt', 'mehrfach', 'angeheftet', 'beendet', 'namentlich', 'oeffentlich'];
 
 function spaltenTyp(sp) {
   if (ZAHL_SPALTEN.indexOf(sp) >= 0) return 'zahl';
