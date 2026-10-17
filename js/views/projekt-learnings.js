@@ -88,9 +88,9 @@ async function loeschen(opt, r, fenster) {
 }
 
 // r = null heißt neu. projektId = '' heißt ohne Projekt.
-function formZeigen(opt, r, projektId) {
+function formZeigen(opt, r, projektId, vorgabe) {
   let fenster = null;
-  const form = baueFormular(SCHEMA.Learnings.felder, r || {}, {
+  const form = baueFormular(SCHEMA.Learnings.felder, r || vorgabe || {}, {
     speichernText: r ? 'Speichern' : 'Anlegen',
     vorschlaege: { aktionsart: arten(opt.holeDaten().learnings || []) },
     onSpeichern: function (d) { return speichern(opt, r, d, projektId, fenster); },
@@ -161,7 +161,9 @@ export function baueLearningTeil(opt) {
   const zeilen = neuesteZuerst((opt.holeDaten().learnings || []).filter(function (r) {
     return txt(r.projekt_id) === pid;
   }));
-  const body = el('div', { class: 'projekt-teil-body' }, plusKnopf(function () { formZeigen(opt, null, pid); }));
+  const body = el('div', { class: 'projekt-teil-body' }, plusKnopf(function () {
+    formZeigen(opt, null, pid, { aktionsart: txt(opt.projekt.aktionsart) });
+  }));
   if (!zeilen.length) {
     body.append(el('p', {
       class: 'leise',
