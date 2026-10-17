@@ -88,26 +88,27 @@ async function loeschen(opt, r, fenster) {
 
 // Aus der Idee ein Projekt in Planung machen
 async function starten(opt, r) {
-  if (!window.confirm('Aus der Idee „' + txt(r.titel) + '“ ein Projekt in Planung machen?')) return;
+  if (!window.confirm('Aus der Idee „' + txt(r.titel) + '“ ein Projekt in Planung machen?\n\n' +
+    'Die Idee bleibt in der Liste.')) return;
   let o;
   try {
     o = await api('create', {
       tabelle: 'Projekte',
-      daten: { titel: txt(r.titel), beschreibung: txt(r.beschreibung), status: 'planung' }
+      daten: {
+        titel: txt(r.titel),
+        beschreibung: txt(r.beschreibung),
+        aktionsart: txt(r.aktionsart),
+        status: 'planung'
+      }
     }, opt.token);
   } catch (e) {
     if (opt.ctx.behandleFehler(e)) return;
     toast(e.message);
     return;
   }
-  try {
-    await api('update', { tabelle: 'Ideen', id: r.id, daten: { projekt_id: String(o.id) } }, opt.token);
-    toast('Projekt in Planung angelegt. Du findest es unten unter „In Planung“.');
-  } catch (e2) {
-    if (opt.ctx.behandleFehler(e2)) return;
-    toast('Projekt angelegt, aber die Idee konnte nicht abgehakt werden: ' + e2.message);
-  }
+  toast('Projekt in Planung angelegt.');
   await opt.neuLaden();
+  if (opt.springe) opt.springe(o.id);
 }
 
 // r = null heißt neu
@@ -152,9 +153,7 @@ function zeile(opt, r) {
 }
 
 export function baueIdeenTeil(opt) {
-  const zeilen = neuesteZuerst((opt.holeDaten().ideen || []).filter(function (r) {
-    return !txt(r.projekt_id);
-  }));
+  const zeilen = neuesteZuerst(opt.holeDaten().ideen || []);
   const body = el('div', { class: 'projekt-teil-body' },
     el('div', { class: 'teil-aktionen' },
       el('button', {
