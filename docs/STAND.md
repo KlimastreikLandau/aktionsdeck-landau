@@ -1,6 +1,6 @@
 # STAND – AktionsDeck Landau
 
-Version der App: 0.26.3 (gleich in js/config.js und sw.js: beide Dateien prüfen)
+Version der App: 0.27.2 (gleich in js/config.js und sw.js: beide Dateien prüfen)
 Repo: https://github.com/KlimastreikLandau/aktionsdeck-landau
 Seite: https://klimastreiklandau.github.io/aktionsdeck-landau/
 
@@ -9,13 +9,13 @@ Seite: https://klimastreiklandau.github.io/aktionsdeck-landau/
 - Etappe 4 komplett (0.18.0 bis 0.25.x): Projekte, ToDos und Meilensteine im Projekt, Meilenstein-Vorlagen, Hüte, Material im Projekt, Finanzen, Planung und Abschluss, Learnings, Aufräumen.
 - Etappe 5 Start als Zentrale (0.26.0 bis 0.26.3): Umfragen, Schwarzes Brett, Pinnwand, Kommentare, Aktionsideen, Aktionsart, Korrekturen 4.7.1. Alle Prüfpunkte bis 0.26.2 bestätigt. 0.26.3 (Pinnwand "Als Mitteilung anheften", Handy-Knöpfe in einer Zeile, Suche unter "Nicht angeheftet", "Ergebnis kopieren") ist noch zu prüfen.
 - Das Sheet wurde vor 0.26.0 komplett geleert (keine Testdaten). Danach sind beim Testen von Etappe 5 neue Testeinträge entstanden (Umfragen, Mitteilungen, Kommentare, Ideen): vor dem Echtbetrieb im Sheet löschen.
-
-## Nächste Schritte (Reihenfolge)
-0. Neuer Chat: Version in js/config.js und sw.js prüfen, 0.26.3 prüfen lassen (Prüfliste), Anmerkungen des Nutzers sammeln.
-1. Schritt 5.10b "Was ist neu seit meinem letzten Besuch?" (Vorschlag, Entscheidung offen): Neue Datei js/ui/neu-seit.js (Fenster), zwei Funktionen in js/store.js (Zeitpunkt des letzten Besuchs im Gerät, pro Gerät nicht pro Person), Aufruf und Knopf "Was ist neu? (n)" in js/views/start.js. Quelle: listMehrere mit "seit" (kann das Skript schon, inkl. gelöschter Einträge). Eigene Änderungen (erstellt_von/geaendert_von = Anzeigename) werden ausgeblendet. Quellen-Vorschlag: ToDos, Mitteilungen, Umfragen, Kommentare, Projekte (Material eher nicht). Offene Fragen an den Nutzer: automatisch beim Start oder nur per Knopf mit Zahl (Empfehlung Knopf), welche Quellen, wann gilt "gelesen". Kein Skript, keine neue Spalte nötig.
-2. Etappe 6 Veranstaltungen und Kalender (siehe Plan). Dort auch: Veranstaltungen und gruppeninterne Termine (Teambuilding) als Mitteilung auf das Schwarze Brett heften (Knopf "An Schwarzes Brett anheften", legt eine Mitteilung an, wie bei den Pinnwand-Kommentaren). Optional: Kommentar-Zahl auch auf dem Start bei den ToDos (Nutzer sagt: erstmal nicht nötig).
-3. Danach Etappen 7 bis 11 (siehe Plan).
-Neue docs/STAND.md liefert Claude nur auf Aufforderung.
+## Stand Etappe 6 (0.27.0 bis 0.27.2)
+- Erledigt: 5.10 komplett (Was ist neu mit Glocke und Gliederung, Mitteilung-Merker über Kommentare.angeheftet, Brett-Kachel nur mit angehefteten, Archiv in zwei Spalten mit Suche, Klick auf aktiven Reiter baut Ansicht neu auf).
+- 6.1 und 6.1b erledigt: Sheet-Tabs Veranstaltungen und Termin_Vorlagen, Schema.gs und js/schema.js (Feldtyp "zeit" in form.js). Vorlagen gehören je Gruppe (gruppe_id).
+- 6.2 erledigt: js/views/kalender-rechnen.js (baueTermine, filtereTermine, kommende, vergangene, monatsRaster, naechsterWochentag, sichereUrl). Noch nicht benutzt.
+- Offen: In kalender-rechnen.js zeigt der Abschnitt "3) Projekte" nur Projekte mit Status aktiv (Planung nicht). Meilensteine und ToDos bleiben, nur die abgeschlossener Projekte nicht.
+- Nächste Schritte: 6.3a Reiter Kalender (js/views/kalender.js: Liste Kommende/Vergangene, Filterleiste, Veranstaltung anlegen/ändern/löschen mit Uhrzeit und mehreren Tagen), 6.3b Vorlagen (js/views/kalender-vorlagen.js; Plenum FFF: KHG, Moltkestraße 9, Landau, Donnerstag, 18:30; Plenum GP: gleicher Ort, Dienstag, 19:00; bearbeitbar, neu anlegbar, keine Serie), 6.4 Monatsansicht auch am Handy (Hochformat, Tipp auf Tag zeigt Details), 6.5 Anheften (extern: Pinnwand-Eintrag, jede externe; intern: automatisch angeheftete Mitteilung; beide mit Doppelt-Prüfung), 6.6 Skript Termine.gs (Aktion termine ohne Login, nur art extern und oeffentlich TRUE, nur kommende, Gruppenname/Kurzname/Farbe, GET mit Filter gruppe=fff für fremde Webseiten, optional .ics, kurz zwischenspeichern), 6.7 öffentliche Seite js/views/termine.js (#/termine) und alle kommenden öffentlichen Termine auf der Gruppenwahl, vergangene sofort ausblenden (mehrtägige bis letzter Tag), 6.8 Veranstaltungen als Quelle in "Was ist neu" (keine Extra-Kachel), 6.9 Test, Sicherheitsprüfung, Aufräumen.
+- Festlegungen Kalender: Reiter heißt weiter Kalender (Posts bleibt bis Etappe 7). Filter: Veranstaltungen intern/extern, öffentliche anderer Gruppen (Schalter, in Gruppenfarbe), Projekte, Deadlines, Meilensteine, ToDos (alle offenen der Gruppe, Schalter "nur meine"). Klick auf ToDo/Meilenstein springt ins Projekt. Projektbalken von Start bis Deadline (ohne Start ab erstem Meilenstein, ohne Deadline kein Balken), Meilensteine als Striche. Mobi-Kalender (Etappe 7) nutzt dieselbe Logik mit voreingestelltem Filter.
 
 ## Plan Etappen 6 bis 11
 Neue Reiter: Start, Projekte, ToDos, Material, Mobi, Veranstaltungen, Team, Wiki. "Posts" wird Mobi, "Hilfe" wird Wiki, der Reiter Kalender entfällt (Kalender steckt in Mobi und Veranstaltungen). Untere Leiste am Handy bleibt: Start, Projekte, ToDos, Material, Mehr. Auf dem Start-Dashboard sind die Kacheln Material, Kalender, Posts schon entfallen.
