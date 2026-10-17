@@ -1531,3 +1531,11 @@ p.notiz.erledigt {
 @media (max-width: 599px) {
   .dash-kopf .kopf-knoepfe .knopf.glocke { flex: none; padding: 0 10px; font-size: 18px; }
 }
+
+/* ---- 0.27.1: Archiv in zwei Spalten ---- */
+.archiv-zwei { display: grid; gap: 0 16px; align-items: start; }
+.archiv-zwei > * { min-width: 0; }
+
+@media (min-width: 960px) {
+  .archiv-zwei { grid-template-columns: 1fr 1fr; }
+}
