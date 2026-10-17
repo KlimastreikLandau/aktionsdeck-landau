@@ -69,7 +69,7 @@ export async function render(container, ctx) {
   if (merk.token !== s.token) merk = { token: s.token, offen: {}, teile: {} };
   const offen = merk.offen;
 
-  let daten = { projekte: [], todos: [], meilensteine: [], team: [], material: [], ausleihe: [], pm: [], fin: [], learnings: [], ideen: [] };
+  let daten = { projekte: [], todos: [], meilensteine: [], team: [], material: [], ausleihe: [], pm: [], fin: [], learnings: [], ideen: [], kommentare: [] };
   let archivModus = false;
   let sprungId = ctx.unter || '';   // von der Start-Kachel: dieses Projekt aufklappen
   let letzteJson = '';
@@ -110,6 +110,66 @@ export async function render(container, ctx) {
 
   // ---- Hilfen ----
 
+  // Alle bisherigen Aktionsarten (Projekte, Learnings, Ideen), ohne doppelte
+  function aktionsarten() {
+    const l = [];
+    daten.learnings.concat(daten.ideen, daten.projekte).forEach(function (r) {
+      const a = String(r.aktionsart || '').trim();
+      if (a && !l.some(function (x) { return x.toLowerCase() === a.toLowerCase(); })) l.push(a);
+    });
+    l.sort(function (a, b) { return a.localeCompare(b, 'de'); });
+    return l;
+  }
+
+  // Rechts neben den Projektdaten: Learnings und Aktionsideen mit derselben Aktionsart
+  function aehnliche(p) {
+    const box = el('div', { class: 'projekt-aehnlich' });
+    const art = String(p.aktionsart || '').trim().toLowerCase();
+    if (!art) return box;
+    const gleich = function (r) { return String(r.aktionsart || '').trim().toLowerCase() === art; };
+    const titel = {};
+    daten.projekte.forEach(function (x) { titel[String(x.id)] = String(x.titel); });
+    const id = String(p.id);
+
+    function teil(key, name, liste, zeileFn) {
+      if (!liste.length) return;
+      const d = el('details', { class: 'projekt-teil' });
+      if (merk.teile[key]) d.open = true;
+      d.addEventListener('toggle', function () {
+        if (d.open) merk.teile[key] = true;
+        else delete merk.teile[key];
+      });
+      d.append(
+        el('summary', null,
+          el('span', { class: 'teil-pfeil', 'aria-hidden': 'true', text: '▸' }),
+          el('strong', { text: name }),
+          el('span', { class: 'leise', text: liste.length + ' · ' + String(p.aktionsart) })
+        ),
+        el('div', { class: 'projekt-teil-body' },
+          el('ul', { class: 'dash-todo-liste' }, ...liste.map(zeileFn)))
+      );
+      box.append(d);
+    }
+
+    teil(id + ':aehnL', 'Learnings', daten.learnings.filter(gleich), function (r) {
+      return el('li', { class: 'dash-zeile' },
+        el('div', { class: 'dash-todo' },
+          el('strong', { class: 'notiz', text: String(r.text || '') }),
+          el('span', { class: 'leise lern-projekt', text: titel[String(r.projekt_id || '').trim()] || 'Ohne Projekt' })
+        )
+      );
+    });
+    teil(id + ':aehnI', 'Aktionsideen', daten.ideen.filter(gleich), function (r) {
+      return el('li', { class: 'dash-zeile' },
+        el('div', { class: 'dash-todo' },
+          el('strong', { text: String(r.titel || '') }),
+          r.beschreibung ? el('span', { class: 'leise', text: String(r.beschreibung).slice(0, 100) }) : null
+        )
+      );
+    });
+    return box;
+  }
+  
   function imModus() {
     return sortiereProjekte(
       daten.projekte.filter(function (p) { return istAbgeschlossen(p) === archivModus; }),
@@ -314,14 +374,18 @@ export async function render(container, ctx) {
       ),
       el('div', { class: 'projekt-body' },
         p.beschreibung ? el('p', { class: 'notiz', text: String(p.beschreibung) }) : null,
-        paare([
-          ['Status', statusText(p.status)],
-          ['Ort', p.ort],
-          ['Start', datumText(p.start_datum)],
-          ['Aktionsdatum', datumText(p.aktionsdatum)],
-          ['Deadline', datumText(p.deadline)],
-          ['Geplantes Budget', euro(p.budget_geplant)]
-        ]),
+        el('div', { class: 'projekt-info-zwei' },
+          paare([
+            ['Status', statusText(p.status)],
+            ['Ort', p.ort],
+            ['Aktionsart', p.aktionsart],
+            ['Start', datumText(p.start_datum)],
+            ['Aktionsdatum', datumText(p.aktionsdatum)],
+            ['Deadline', datumText(p.deadline)],
+            ['Geplantes Budget', euro(p.budget_geplant)]
+          ]),
+          aehnliche(p)
+        ),
         todoTeil,
         materialTeil,
         finanzTeil,
@@ -366,7 +430,8 @@ export async function render(container, ctx) {
       holeDaten: function () { return daten; },
       offen: !!merk.ideenAuf,
       beiToggle: function (o) { merk.ideenAuf = o; },
-      neuLaden: function () { return laden(false); }
+      neuLaden: function () { return laden(false); },
+      springe: springe
     }));
 
     leeren(box);
@@ -412,6 +477,7 @@ export async function render(container, ctx) {
     let fenster = null;
     const form = baueFormular(SCHEMA.Projekte.felder, p || { status: 'planung' }, {
       speichernText: neuAnlegen ? 'Anlegen' : 'Speichern',
+      vorschlaege: { aktionsart: aktionsarten() },
       onSpeichern: function (d) { return speichern(p, d, fenster); },
       onAbbrechen: function () { fenster.schliessen(); }
     });
@@ -580,6 +646,7 @@ export async function render(container, ctx) {
     if (!neu.fin) neu.fin = [];
     if (!neu.learnings) neu.learnings = [];
     if (!neu.ideen) neu.ideen = [];
+    if (!neu.kommentare) neu.kommentare = [];
     const json = JSON.stringify(neu);
     const gleich = json === letzteJson;
     daten = neu;
@@ -613,7 +680,7 @@ export async function render(container, ctx) {
         s.gruppe_id + ':projekte',
         async function () {
           const r = await api('listMehrere', {
-              tabellen: ['Projekte', 'ToDos', 'Meilensteine', 'Material', 'Ausleihe', 'Projekt_Material', 'Finanzen', 'Learnings', 'Ideen']
+              tabellen: ['Projekte', 'ToDos', 'Meilensteine', 'Material', 'Ausleihe', 'Projekt_Material', 'Finanzen', 'Learnings', 'Ideen', 'Kommentare']
           }, s.token);
           const t = (r && r.tabellen) || {};
           return {
@@ -625,7 +692,8 @@ export async function render(container, ctx) {
             pm: t.Projekt_Material || [],
             fin: t.Finanzen || [],
             learnings: t.Learnings || [],
-            ideen: t.Ideen || []
+            ideen: t.Ideen || [],
+            kommentare: t.Kommentare || []
           };
         },
         zeigen,
