@@ -1,8 +1,10 @@
 // js/views/start-umfragen.js
-// Umfragen ganz oben auf dem Start: Frage, Antworten, Ablaufdatum, Ergebnis.
-// Jede Person (nach Anzeigename) hat eine Stimme und kann sie ändern, solange die Umfrage läuft.
-// Tabs: Umfragen (frage, optionen, ablauf_am, mehrfach), Umfrage_Antworten (umfrage_id, person, auswahl).
-// opt: { ctx, token, umfragen, antworten, neuLaden() -> Promise }
+// Umfragen auf dem Start: In der Kachel steht nur eine Zeile je Umfrage. Ein Klick öffnet ein Fenster
+// (Abstimmen und Ergebnis). Beendet wird von Hand, dann steht die Umfrage im Archiv.
+// Die Frist färbt die Zeile (heute = orange, vorbei = rot), beendet aber nichts.
+// Jede Person (nach Anzeigename) hat eine Stimme. In der App sieht man nur Zahlen, keine Namen.
+// Tabs: Umfragen (frage, optionen, ablauf_am, mehrfach, beendet), Umfrage_Antworten (umfrage_id, person, auswahl).
+// opt: { ctx, token, holeDaten() -> { umfragen, antworten }, neuLaden() -> Promise }
 
 import { el, leeren } from '../ui/dom.js';
 import { api } from '../api.js';
@@ -14,21 +16,43 @@ import { getName } from '../store.js';
 import { SCHEMA, istWahr } from '../schema.js';
 import { normDatum, datumText, heuteIso } from './todos-rechnen.js';
 
+// Welche Umfragen im Archiv aufgeklappt sind (bleibt beim Neuzeichnen erhalten)
+const archivOffen = {};
+
 function txt(v) {
   return String(v === undefined || v === null ? '' : v).trim();
 }
 
 function optionenVon(u) {
-  return txt(u.optionen === undefined ? '' : u.optionen === null ? '' : String(u.optionen))
+  return txt(u.optionen)
     .split('\n')
     .map(function (t) { return t.trim(); })
     .filter(Boolean);
 }
 
-// Am Tag des Ablaufdatums kann man noch abstimmen
 function beendet(u) {
+  return istWahr(u.beendet);
+}
+
+// '' | 'ueberfaellig' | 'heute' (nur für laufende Umfragen)
+function fristStatus(u) {
+  if (beendet(u)) return '';
   const d = normDatum(u.ablauf_am);
-  return !!d && d < heuteIso();
+  if (!d) return '';
+  const h = heuteIso();
+  if (d < h) return 'ueberfaellig';
+  if (d === h) return 'heute';
+  return '';
+}
+
+function fristText(u) {
+  if (!u.ablauf_am) return 'Ohne Frist';
+  const t = datumText(u.ablauf_am);
+  if (beendet(u)) return 'Frist war ' + t;
+  const st = fristStatus(u);
+  if (st === 'ueberfaellig') return 'Frist ' + t + ' (überfällig)';
+  if (st === 'heute') return 'Frist ' + t + ' (heute)';
+  return 'Frist ' + t;
 }
 
 // "0,2" -> [0, 2]
@@ -41,8 +65,8 @@ function auswahlVon(a) {
     .filter(function (n) { return !isNaN(n); });
 }
 
-// Laufende: bald ablaufende zuerst, ohne Datum zuletzt
-function nachAblauf(a, b) {
+// Laufende: bald fällige zuerst, ohne Frist zuletzt
+function nachFrist(a, b) {
   const da = normDatum(a.ablauf_am);
   const db = normDatum(b.ablauf_am);
   if (da !== db) {
@@ -53,19 +77,65 @@ function nachAblauf(a, b) {
   return String(b.erstellt_am || '').localeCompare(String(a.erstellt_am || ''));
 }
 
+// Archiv: zuletzt beendete zuerst
+function nachBeendet(a, b) {
+  return String(b.geaendert_am || '').localeCompare(String(a.geaendert_am || ''));
+}
+
+function finde(id, opt) {
+  return opt.holeDaten().umfragen.find(function (u) { return String(u.id) === String(id); }) || null;
+}
+
+function stimmenVon(u, antworten) {
+  return antworten.filter(function (a) { return String(a.umfrage_id) === String(u.id); });
+}
+
 function meineStimme(u, antworten) {
   const n = txt(getName()).toLowerCase();
   if (!n) return null;
-  return antworten.find(function (a) {
-    return String(a.umfrage_id) === String(u.id) && txt(a.person).toLowerCase() === n;
+  return stimmenVon(u, antworten).find(function (a) {
+    return txt(a.person).toLowerCase() === n;
   }) || null;
 }
 
-function umfrageBlock(u, opt) {
+export function anzahlBeendet(liste) {
+  return (liste || []).filter(beendet).length;
+}
+
+// ---- Beenden und wieder öffnen ----
+
+async function beendetSetzen(u, wert, text, opt, nachher) {
+  try {
+    await api('update', { tabelle: 'Umfragen', id: u.id, daten: { beendet: wert } }, opt.token);
+    toast(text);
+    await opt.neuLaden();
+    if (nachher) nachher();
+  } catch (e) {
+    if (opt.ctx.behandleFehler(e)) return;
+    if (e.code === 'nicht_gefunden') {
+      toast('Diese Umfrage gibt es nicht mehr.');
+      opt.neuLaden();
+    } else {
+      toast(e.message);
+    }
+  }
+}
+
+async function beenden(u, opt, nachher) {
+  const frage = 'Umfrage beenden?\n\n„' + txt(u.frage) + '“\n\n' +
+    'Danach kann niemand mehr abstimmen. Sie steht dann im Archiv.';
+  if (!window.confirm(frage)) return;
+  await beendetSetzen(u, true, 'Umfrage beendet.', opt, nachher);
+}
+
+// ---- Inhalt einer Umfrage (im Fenster und im Archiv) ----
+
+function umfrageBlock(u, opt, neuZeichnen) {
+  const antworten = opt.holeDaten().antworten;
   const optionen = optionenVon(u);
   const aus = beendet(u);
   const mehrfach = istWahr(u.mehrfach);
-  const alle = opt.antworten.filter(function (a) { return String(a.umfrage_id) === String(u.id); });
+  const alle = stimmenVon(u, antworten);
   const zaehler = optionen.map(function () { return 0; });
   alle.forEach(function (a) {
     auswahlVon(a).forEach(function (i) {
@@ -73,7 +143,7 @@ function umfrageBlock(u, opt) {
     });
   });
   const personen = alle.length;
-  const mein = meineStimme(u, opt.antworten);
+  const mein = meineStimme(u, antworten);
   const meine = mein ? auswahlVon(mein) : [];
   const eingaben = [];
   const fehler = el('p', { class: 'fehler', role: 'alert' });
@@ -127,6 +197,7 @@ function umfrageBlock(u, opt) {
       }
       toast('Deine Stimme ist gespeichert.');
       await opt.neuLaden();
+      if (neuZeichnen) neuZeichnen();
     } catch (e) {
       if (opt.ctx.behandleFehler(e)) return;
       fehler.textContent = e.message;
@@ -135,42 +206,87 @@ function umfrageBlock(u, opt) {
   });
 
   const meta = [
+    aus ? 'Beendet' : '',
     mehrfach ? 'Mehrere Antworten möglich' : 'Eine Antwort',
-    u.ablauf_am ? (aus ? 'Beendet am ' : 'Läuft bis ') + datumText(u.ablauf_am) : 'Ohne Ablaufdatum',
     personen + (personen === 1 ? ' Person' : ' Personen') + ' abgestimmt'
-  ].join(' · ');
+  ].filter(Boolean).join(' · ') + ' · ';
+
+  const knoepfe = el('div', { class: 'form-knoepfe' });
+  if (!aus) knoepfe.append(abstimmen);
+  knoepfe.append(el('button', {
+    class: 'knopf knopf-hell', type: 'button', text: 'Bearbeiten',
+    onclick: function () { formZeigen(u, opt, neuZeichnen); }
+  }));
+  if (aus) {
+    knoepfe.append(el('button', {
+      class: 'knopf knopf-hell', type: 'button', text: 'Wieder öffnen',
+      onclick: function () {
+        beendetSetzen(u, false, 'Umfrage wieder geöffnet.', opt, neuZeichnen);
+      }
+    }));
+  } else {
+    knoepfe.append(el('button', {
+      class: 'knopf knopf-hell', type: 'button', text: 'Umfrage beenden',
+      onclick: function () { beenden(u, opt, neuZeichnen); }
+    }));
+  }
 
   return el('div', { class: 'umfrage' },
-    el('div', { class: 'umfrage-kopf' },
-      el('div', { class: 'umfrage-titel' },
-        el('strong', { text: txt(u.frage) }),
-        el('span', { class: 'leise', text: meta })
-      ),
-      el('button', {
-        class: 'knopf knopf-hell knopf-klein', type: 'button', text: 'Bearbeiten',
-        onclick: function () { formZeigen(u, opt); }
-      })
+    el('p', { class: 'leise' },
+      el('span', { text: meta }),
+      el('span', { class: 'umfrage-frist ' + fristStatus(u), text: fristText(u) })
     ),
     ...reihen,
-    aus ? null : el('div', { class: 'form-knoepfe' }, abstimmen),
+    el('p', {
+      class: 'leise',
+      text: 'In der App sieht niemand, wer wie abgestimmt hat. Du siehst nur die Zahlen.'
+    }),
+    knoepfe,
     fehler
   );
 }
 
+// ---- Fenster mit einer Umfrage ----
+
+function oeffneUmfrage(id, opt) {
+  const inhalt = el('div');
+  let fenster = null;
+
+  function zeichne() {
+    leeren(inhalt);
+    const u = finde(id, opt);
+    if (!u) {
+      if (fenster) fenster.schliessen();
+      return;
+    }
+    inhalt.append(
+      el('h3', { class: 'umfrage-frage', text: txt(u.frage) }),
+      umfrageBlock(u, opt, zeichne),
+      el('div', { class: 'fenster-loeschen' },
+        el('button', {
+          class: 'knopf knopf-hell', type: 'button', text: 'Schließen',
+          onclick: function () { fenster.schliessen(); }
+        })
+      )
+    );
+  }
+
+  zeichne();
+  fenster = zeigeFenster('Umfrage', inhalt, null, { aussenKlick: true });
+}
+
 // ---- Anlegen, Ändern, Löschen (u = null heißt neu) ----
 
-function formZeigen(u, opt) {
+function formZeigen(u, opt, nachher) {
   let fenster = null;
-  const hatStimmen = !!u && opt.antworten.some(function (a) {
-    return String(a.umfrage_id) === String(u.id);
-  });
+  const hatStimmen = !!u && stimmenVon(u, opt.holeDaten().antworten).length > 0;
   // Schon abgestimmt: die Antworten bleiben fest (sonst stimmen die Nummern nicht mehr)
   const felder = SCHEMA.Umfragen.felder.filter(function (f) {
     return !(hatStimmen && f.name === 'optionen');
   });
   const form = baueFormular(felder, u || { mehrfach: false }, {
     speichernText: u ? 'Speichern' : 'Anlegen',
-    onSpeichern: function (d) { return speichern(u, d, fenster, opt); },
+    onSpeichern: function (d) { return speichern(u, d, fenster, opt, nachher); },
     onAbbrechen: function () { fenster.schliessen(); }
   });
   const inhalt = el('div', null, form);
@@ -184,14 +300,18 @@ function formZeigen(u, opt) {
     inhalt.append(el('div', { class: 'fenster-loeschen' },
       el('button', {
         class: 'knopf knopf-gefahr', type: 'button', text: 'Löschen',
-        onclick: function () { loeschen(u, fenster, opt); }
+        onclick: function () { loeschen(u, fenster, opt, nachher); }
       })
     ));
   }
   fenster = zeigeFenster(u ? 'Umfrage bearbeiten' : 'Neue Umfrage', inhalt);
 }
 
-async function speichern(u, d, fenster, opt) {
+export function neueUmfrage(opt) {
+  formZeigen(null, opt, null);
+}
+
+async function speichern(u, d, fenster, opt, nachher) {
   if (d.optionen !== undefined) {
     const n = String(d.optionen).split('\n')
       .map(function (t) { return t.trim(); }).filter(Boolean).length;
@@ -210,6 +330,7 @@ async function speichern(u, d, fenster, opt) {
     }
     fenster.schliessen();
     await opt.neuLaden();
+    if (nachher) nachher();
   } catch (e) {
     if (opt.ctx.behandleFehler(e)) return;
     if (e.code === 'konflikt' || e.code === 'nicht_gefunden') {
@@ -221,13 +342,14 @@ async function speichern(u, d, fenster, opt) {
   }
 }
 
-async function loeschen(u, fenster, opt) {
+async function loeschen(u, fenster, opt, nachher) {
   if (!window.confirm('Diese Umfrage wirklich löschen?\n\n„' + txt(u.frage) + '“')) return;
   try {
     await api('delete', { tabelle: 'Umfragen', id: u.id, bekannt: u.geaendert_am }, opt.token);
     fenster.schliessen();
     toast('Gelöscht.');
     await opt.neuLaden();
+    if (nachher) nachher();
   } catch (e) {
     if (opt.ctx.behandleFehler(e)) return;
     if (e.code === 'konflikt') {
@@ -241,36 +363,76 @@ async function loeschen(u, fenster, opt) {
 
 // ---- Zeichnen ----
 
-export function zeichneUmfragen(box, opt) {
-  leeren(box);
-  const laufend = opt.umfragen.filter(function (u) { return !beendet(u); }).sort(nachAblauf);
-  const fertig = opt.umfragen.filter(beendet).sort(nachAblauf).reverse().slice(0, 10);
+// Eine Zeile in der Kachel: Frage, Frist, Stimmen. Klick öffnet das Fenster.
+function zeile(u, opt) {
+  const antworten = opt.holeDaten().antworten;
+  const st = fristStatus(u);
+  const n = stimmenVon(u, antworten).length;
+  const mein = meineStimme(u, antworten);
+  const info = [
+    fristText(u),
+    n + ' abgestimmt',
+    mein ? '✔ Du hast abgestimmt' : 'Du hast noch nicht abgestimmt'
+  ].join(' · ');
 
-  const karte = el('section', { class: 'karte dash-kachel' },
-    el('div', { class: 'dash-kachel-titel' },
-      el('h2', { text: 'Umfragen' }),
+  return el('li', { class: 'dash-zeile mit-hut' },
+    el('button', {
+      class: 'dash-todo pt-todo' + (st ? ' ' + st : ''), type: 'button',
+      onclick: function () { oeffneUmfrage(u.id, opt); }
+    },
+      el('strong', { text: txt(u.frage) }),
+      el('span', { class: 'leise', text: info })
+    ),
+    el('div', { class: 'hut-knoepfe' },
       el('button', {
-        class: 'knopf knopf-hell', type: 'button', text: '+ Neue Umfrage',
-        onclick: function () { formZeigen(null, opt); }
+        class: 'knopf knopf-hell knopf-klein', type: 'button', text: 'Beenden',
+        onclick: function () {
+          beenden(u, opt, function () { oeffneUmfrage(u.id, opt); });
+        }
       })
     )
   );
-  if (!laufend.length) karte.append(el('p', { class: 'leise', text: 'Keine Umfrage offen.' }));
-  laufend.forEach(function (u) { karte.append(umfrageBlock(u, opt)); });
+}
 
-  if (fertig.length) {
+// Kachel mit den laufenden Umfragen. Gibt es keine, bleibt die Box versteckt.
+export function zeichneUmfragen(box, opt) {
+  leeren(box);
+  const laufend = opt.holeDaten().umfragen.filter(function (u) { return !beendet(u); }).sort(nachFrist);
+  box.hidden = !laufend.length;
+  if (box.hidden) return;
+  box.append(el('section', { class: 'karte dash-kachel' },
+    el('div', { class: 'dash-kachel-titel' },
+      el('h2', { text: 'Umfragen' })
+    ),
+    el('ul', { class: 'dash-todo-liste' }, ...laufend.map(function (u) { return zeile(u, opt); }))
+  ));
+}
+
+// Archiv: beendete Umfragen, einzeln aufklappbar
+export function zeichneArchiv(box, opt) {
+  leeren(box);
+  const liste = opt.holeDaten().umfragen.filter(beendet).sort(nachBeendet);
+  if (!liste.length) {
+    box.append(el('p', { class: 'leise', text: 'Das Archiv ist leer. Beendete Umfragen stehen hier.' }));
+    return;
+  }
+  liste.forEach(function (u) {
+    const id = String(u.id);
     const d = el('details', { class: 'projekt-teil' });
+    if (archivOffen[id]) d.open = true;
+    d.addEventListener('toggle', function () {
+      if (d.open) archivOffen[id] = true;
+      else delete archivOffen[id];
+    });
+    const n = stimmenVon(u, opt.holeDaten().antworten).length;
     d.append(
       el('summary', null,
         el('span', { class: 'teil-pfeil', 'aria-hidden': 'true', text: '▸' }),
-        el('strong', { text: 'Beendete Umfragen' }),
-        el('span', { class: 'leise', text: String(fertig.length) })
+        el('strong', { text: txt(u.frage) }),
+        el('span', { class: 'leise', text: n + (n === 1 ? ' Person' : ' Personen') })
       ),
-      el('div', { class: 'projekt-teil-body' },
-        ...fertig.map(function (u) { return umfrageBlock(u, opt); })
-      )
+      el('div', { class: 'projekt-teil-body' }, umfrageBlock(u, opt, null))
     );
-    karte.append(d);
-  }
-  box.append(karte);
+    box.append(d);
+  });
 }
