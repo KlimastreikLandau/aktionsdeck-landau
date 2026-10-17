@@ -128,21 +128,14 @@ export function zeichneBrett(box, opt) {
   const fest = opt.mitteilungen.filter(function (m) { return istWahr(m.angeheftet); }).sort(neuesteZuerst);
   const normal = opt.mitteilungen.filter(function (m) { return !istWahr(m.angeheftet); }).sort(neuesteZuerst);
 
+  box.hidden = !fest.length && !normal.length;
+  if (box.hidden) return;
+
   const karte = el('section', { class: 'karte dash-kachel' },
     el('div', { class: 'dash-kachel-titel' },
-      el('h2', { text: 'Schwarzes Brett' }),
-      el('button', {
-        class: 'knopf knopf-hell', type: 'button', text: '+ Mitteilung',
-        onclick: function () { formZeigen(null, opt); }
-      })
+      el('h2', { text: 'Schwarzes Brett' })
     )
   );
-  if (!fest.length && !normal.length) {
-    karte.append(el('p', {
-      class: 'leise',
-      text: 'Noch keine Mitteilung. Hier stehen z. B. Änderungen der Plenumszeit.'
-    }));
-  }
   fest.concat(normal.slice(0, MAX_NORMAL)).forEach(function (m) { karte.append(mitteilung(m, opt)); });
 
   const rest = normal.slice(MAX_NORMAL);
@@ -161,4 +154,9 @@ export function zeichneBrett(box, opt) {
     karte.append(d);
   }
   box.append(karte);
+}
+
+// Für den Knopf oben auf dem Start
+export function neueMitteilung(opt) {
+  formZeigen(null, opt);
 }
