@@ -13,7 +13,10 @@ import { fortschrittsBalken } from '../ui/balken.js';
 import { toast } from '../ui/toast.js';
 import { baueKommentare } from '../ui/kommentare.js';
 import { zeichneUmfragen, zeichneArchiv, neueUmfrage, anzahlBeendet } from './start-umfragen.js';
-import { zeichneBrett, neueMitteilung, mitteilungAus } from './start-brett.js';
+import {
+  zeichneBrett, neueMitteilung, mitteilungAus, zeichneBrettArchiv,
+  findeMitteilung, anzahlNichtAngeheftet
+} from './start-brett.js';
 import { getName, setLetzterBesuch } from '../store.js';
 import { holeNeu, zeigeNeu } from '../ui/neu-seit.js';
 import { istWahr } from '../schema.js';
@@ -98,10 +101,17 @@ export async function render(container, ctx) {
   const extraRaster = el('div', { class: 'dash-raster start-extra' }, umfrageBox, brettBox);
   extraRaster.hidden = true;   // erst sichtbar, wenn es Umfragen oder Mitteilungen gibt
 
-  const archivListe = el('div');
+  const archivUmfragen = el('div');
+  const archivMitteilungen = el('div');
+  const archivListe = el('div', null,
+    el('h2', { class: 'liste-titel', text: 'Beendete Umfragen' }),
+    archivUmfragen,
+    el('h2', { class: 'liste-titel', text: 'Nicht angeheftete Mitteilungen' }),
+    archivMitteilungen
+  );
   const archivBox = el('div', null,
     el('div', { class: 'kopfzeile' },
-      el('h2', { text: 'Umfrage-Archiv' }),
+      el('h2', { text: 'Archiv' }),
       el('button', {
         class: 'knopf knopf-hell', type: 'button', text: '← Zurück zum Start',
         onclick: function () { archivSchalten(false); }
@@ -117,12 +127,13 @@ export async function render(container, ctx) {
   });
   archivKnopf.hidden = true;
   let neuStand = null;   // { items, stand }
+  const neuZahl = el('sup', { class: 'glocke-zahl' });
   const neuKnopf = el('button', {
-    class: 'knopf knopf-hell', type: 'button', text: 'Was ist neu?',
+    class: 'knopf knopf-hell glocke', type: 'button',
+    'aria-label': 'Was ist neu?', title: 'Was ist neu?',
     onclick: function () { neuOeffnen(); }
-  });
-  const neuZeile = el('div', { class: 'neu-zeile' }, neuKnopf);
-  neuZeile.hidden = true;
+  }, el('span', { 'aria-hidden': 'true', text: '🔔' }), neuZahl);
+  neuKnopf.hidden = true;
   const kopfKnoepfe = el('div', { class: 'kopf-knoepfe' },
     el('button', {
       class: 'knopf knopf-hell', type: 'button', text: '+ Umfrage',
@@ -132,7 +143,8 @@ export async function render(container, ctx) {
       class: 'knopf knopf-hell', type: 'button', text: '+ Mitteilung',
       onclick: function () { neueMitteilung(extraOpt()); }
     }),
-    archivKnopf
+    archivKnopf,
+    neuKnopf
   );
   const pinnwand = baueKommentare({
     ctx: ctx,
@@ -146,7 +158,26 @@ export async function render(container, ctx) {
     neuesteZuerst: true,
     alsMitteilung: function (k) {
       const t = String(k.text || '').trim();
-      mitteilungAus(extraOpt(), t.replace(/\s+/g, ' ').slice(0, 60), t);
+      const opt = extraOpt();
+      const da = findeMitteilung(opt.mitteilungen, t);
+      if (da) {
+        const frage = istWahr(da.angeheftet)
+          ? 'Dazu gibt es schon eine angeheftete Mitteilung:\n\n„' + String(da.titel || '') + '“\n\n' +
+            'Trotzdem eine neue anlegen?'
+          : 'Dazu gibt es schon eine Mitteilung, die nicht angeheftet ist:\n\n„' + String(da.titel || '') + '“\n\n' +
+            'Du findest sie im Archiv (Suche) und kannst sie dort anheften. Trotzdem eine neue anlegen?';
+        if (!window.confirm(frage)) return;
+      } else if (istWahr(k.angeheftet)) {
+        const frage = 'Aus diesem Kommentar wurde schon einmal eine Mitteilung gemacht ' +
+          '(sie wurde inzwischen geändert oder gelöscht).\n\nTrotzdem eine neue anlegen?';
+        if (!window.confirm(frage)) return;
+      }
+      mitteilungAus(opt, t.replace(/\s+/g, ' ').slice(0, 60), t, function () {
+        // Kommentar merken: daraus wurde schon eine Mitteilung
+        return api('update', {
+          tabelle: 'Kommentare', id: k.id, daten: { angeheftet: true }
+        }, s.token).then(function () { return pinnwand.laden(); }).catch(function () { return null; });
+      });
     },
     max: 30
   });
@@ -172,7 +203,6 @@ export async function render(container, ctx) {
       el('h1', { text: 'Hallo ' + (getName() || '') }),
       kopfKnoepfe
     ),
-    neuZeile,
     fuss,
     archivBox,
     dashBox
@@ -323,7 +353,13 @@ export async function render(container, ctx) {
   function archivSchalten(an) {
     dashBox.hidden = an;
     archivBox.hidden = !an;
-    if (an) zeichneArchiv(archivListe, extraOpt());
+    if (an) archivZeichnen();
+  }
+
+  function archivZeichnen() {
+    const opt = extraOpt();
+    zeichneArchiv(archivUmfragen, opt);
+    zeichneBrettArchiv(archivMitteilungen, opt);
   }
 
   function zeichneExtra() {
@@ -335,10 +371,10 @@ export async function render(container, ctx) {
     zeichneUmfragen(umfrageBox, opt);
     zeichneBrett(brettBox, opt);
     extraRaster.hidden = umfrageBox.hidden && brettBox.hidden;
-    const n = anzahlBeendet(extraDaten.umfragen);
+    const n = anzahlBeendet(extraDaten.umfragen) + anzahlNichtAngeheftet(extraDaten.mitteilungen);
     archivKnopf.hidden = !n;
     archivKnopf.textContent = 'Archiv (' + n + ')';
-    if (!archivBox.hidden) zeichneArchiv(archivListe, opt);
+    if (!archivBox.hidden) archivZeichnen();
   }
 
   async function ladeExtra(zuerstCache) {
@@ -523,8 +559,9 @@ export async function render(container, ctx) {
 
   function neuAnzeige() {
     const n = neuStand ? neuStand.items.length : 0;
-    neuZeile.hidden = !n;
-    neuKnopf.textContent = 'Was ist neu? (' + n + ')';
+    neuKnopf.hidden = !neuStand;
+    neuZahl.textContent = n ? String(n) : '';
+    neuKnopf.setAttribute('aria-label', n ? 'Was ist neu? ' + n + ' neue Einträge' : 'Was ist neu?');
   }
 
   function neuOeffnen() {
