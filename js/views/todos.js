@@ -19,11 +19,14 @@ import { abhakWerte, abhakenSpeichern } from './todos-abhaken.js';
 import { huetKnoepfe, istOffenerHut } from './todos-hut.js';
 import {
   datumText, prioText, kurz, faelligStatus, faelligText, sortieren, treffer,
-  zahlenText, istArchiv, sortiereErledigte
+  zahlenText, istArchiv, sortiereErledigte, kommentarZahlen, kommentarMarke
 } from './todos-rechnen.js';
 
 // Projekt-Titel nach ID (wird beim Laden gefüllt)
 let projektTitel = {};
+
+// Anzahl Kommentare je ToDo (wird beim Laden gefüllt)
+let kommZahl = {};
 
 // Ist die Liste "Noch offen" aufgeklappt? (bleibt beim Reiterwechsel erhalten)
 let hutAuf = false;
@@ -34,7 +37,7 @@ function projektName(t) {
 }
 
 const SPALTEN = [
-  { name: 'text', label: 'Titel', wert: function (z) { return kurz(z.text, 90); } },
+  { name: 'text', label: 'Titel', wert: function (z) { return kurz(z.text, 90) + kommentarMarke(kommZahl[String(z.id)]); } },
   { name: '_projekt', label: 'Projekt', wert: function (z) { return projektName(z); } },
   { name: 'verantwortlich', label: 'Verantwortlich' },
   { name: 'faellig_am', label: 'Fällig', wert: function (z) { return faelligText(z); } },
@@ -46,7 +49,7 @@ function karteVon(z) {
   const fertig = istWahr(z.erledigt);
   const pn = projektName(z);
   return {
-    titel: kurz(z.text, 120),
+    titel: kurz(z.text, 120) + kommentarMarke(kommZahl[String(z.id)]),
     zeilen: [
       pn ? 'Projekt: ' + pn : '',
       [z.verantwortlich,
@@ -70,7 +73,7 @@ export async function render(container, ctx) {
   const s = ctx.session;
   leeren(container);
 
-  let daten = { todos: [], projekte: [] };
+  let daten = { todos: [], projekte: [], kommentare: [] };
   let offenId = null;
   let formOffen = false;
   let formTodo = null;      // das ToDo, wie es beim Öffnen des Formulars war (null = neu)
@@ -233,7 +236,8 @@ export async function render(container, ctx) {
       kw = {
         id: String(t.id),
         w: baueKommentare({
-          ctx: ctx, token: s.token, art: 'todo', bezugId: t.id, projektId: t.projekt_id
+          ctx: ctx, token: s.token, art: 'todo', bezugId: t.id, projektId: t.projekt_id,
+          beiAenderung: function () { laden(false); }
         })
       };
     } else {
@@ -529,11 +533,13 @@ export async function render(container, ctx) {
   function zeigen(neu, m) {
     // Ältere Zwischenspeicher (z. B. von der Start-Kachel) kennen die Projekte nicht
     if (!neu.projekte) neu.projekte = daten.projekte || [];
+    if (!neu.kommentare) neu.kommentare = daten.kommentare || [];
     daten = neu;
     meta = m;
     offline = false;
     projektTitel = {};
     daten.projekte.forEach(function (p) { projektTitel[String(p.id)] = String(p.titel); });
+    kommZahl = kommentarZahlen(daten.kommentare);
     werAufbauen();
     zeichne();
     // Ein offenes Formular wird bei der Aktualisierung nie überschrieben.
@@ -546,9 +552,9 @@ export async function render(container, ctx) {
       const ok = await ladeMitCache(
         s.gruppe_id + ':todos',
         async function () {
-          const r = await api('listMehrere', { tabellen: ['ToDos', 'Projekte'] }, s.token);
+          const r = await api('listMehrere', { tabellen: ['ToDos', 'Projekte', 'Kommentare'] }, s.token);
           const t = (r && r.tabellen) || {};
-          return { todos: t.ToDos || [], projekte: t.Projekte || [] };
+          return { todos: t.ToDos || [], projekte: t.Projekte || [], kommentare: t.Kommentare || [] };
         },
         zeigen,
         zuerstCache
