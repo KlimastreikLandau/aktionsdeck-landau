@@ -103,11 +103,15 @@ export async function render(container, ctx) {
 
   const archivUmfragen = el('div');
   const archivMitteilungen = el('div');
-  const archivListe = el('div', null,
-    el('h2', { class: 'liste-titel', text: 'Beendete Umfragen' }),
-    archivUmfragen,
-    el('h2', { class: 'liste-titel', text: 'Nicht angeheftete Mitteilungen' }),
-    archivMitteilungen
+  const archivListe = el('div', { class: 'archiv-zwei' },
+    el('div', null,
+      el('h2', { class: 'liste-titel', text: 'Beendete Umfragen' }),
+      archivUmfragen
+    ),
+    el('div', null,
+      el('h2', { class: 'liste-titel', text: 'Nicht angeheftete Mitteilungen' }),
+      archivMitteilungen
+    )
   );
   const archivBox = el('div', null,
     el('div', { class: 'kopfzeile' },
