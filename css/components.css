@@ -1421,3 +1421,42 @@ p.notiz.erledigt {
 }
 
 .kommentar-form .feld { min-height: 64px; }
+
+/* ---- 0.26.1: Start-Kopf, Umfragen, Kommentare, Projekt-Info ---- */
+
+/* Start: Knöpfe in der Zeile mit "Hallo ..." (Handy: darunter, links) */
+.dash-kopf { flex-wrap: wrap; }
+.dash-kopf .kopf-knoepfe { margin-left: auto; }
+
+/* Umfragen: Frist wie bei ToDos (heute = orange, vorbei = rot) */
+.umfrage-frist.ueberfaellig { color: #b3261e; font-weight: 600; }
+.umfrage-frist.heute { color: #c77c00; font-weight: 600; }
+.umfrage-frage { margin: 0 0 8px; }
+
+/* Kommentare im Detail und im Fenster: mit Trennstrich und Farbe abgesetzt */
+.detail .kommentare,
+.modal-box .kommentare {
+  margin-top: 24px;
+  padding: 4px 12px 12px;
+  border-top: 4px solid var(--gruppe);
+  border-radius: var(--radius);
+  background: var(--gruen-hell);
+}
+
+/* Projekt: Daten links, Learnings und Ideen zur Aktionsart rechts (Handy: darunter) */
+.projekt-info-zwei {
+  display: grid;
+  gap: 0 16px;
+}
+
+.projekt-info-zwei > * { min-width: 0; }
+
+@media (min-width: 960px) {
+  .projekt-info-zwei { grid-template-columns: 1fr 1fr; align-items: start; }
+}
+
+/* Handy: Knöpfe der Projekte unter dem Titel, linksbündig */
+@media (max-width: 599px) {
+  .dash-kopf .kopf-knoepfe { margin-left: 0; width: 100%; }
+  .projekt-aktionen { margin-left: 0; width: 100%; flex-wrap: wrap; }
+}
