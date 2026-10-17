@@ -2,7 +2,7 @@
 // Jeder Schreibzugriff läuft in einer Sperre. Es sieht nur Daten der eigenen Gruppe.
 
 // Diese Tabs brauchen immer ein Projekt (projekt_id darf nicht leer sein)
-var PROJEKT_PFLICHT = ['Meilensteine', 'Projekt_Team', 'Projekt_Material', 'Finanzen', 'Protokolle', 'Kommentare'];
+var PROJEKT_PFLICHT = ['Meilensteine', 'Projekt_Team', 'Projekt_Material', 'Finanzen', 'Protokolle'];
 
 // Diese Tabs werden beim Löschen eines Projekts mitgelöscht (Posts zuerst, wegen der ToDos zu Posts)
 var PROJEKT_ABHAENGIG = ['Posts', 'ToDos', 'Meilensteine', 'Projekt_Team', 'Projekt_Material',
