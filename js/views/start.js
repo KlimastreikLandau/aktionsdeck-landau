@@ -14,7 +14,8 @@ import { toast } from '../ui/toast.js';
 import { baueKommentare } from '../ui/kommentare.js';
 import { zeichneUmfragen, zeichneArchiv, neueUmfrage, anzahlBeendet } from './start-umfragen.js';
 import { zeichneBrett, neueMitteilung, mitteilungAus } from './start-brett.js';
-import { getName } from '../store.js';
+import { getName, setLetzterBesuch } from '../store.js';
+import { holeNeu, zeigeNeu } from '../ui/neu-seit.js';
 import { istWahr } from '../schema.js';
 import { zeitText } from './material-rechnen.js';
 import { abhakWerte, abhakenSpeichern } from './todos-abhaken.js';
@@ -33,6 +34,9 @@ const MAX_PROJEKTE = 6;
 
 // Welche Projekte in der Kachel aufgeklappt sind (bleibt beim Reiterwechsel erhalten)
 const projektOffen = {};
+
+// Das Fenster "Was ist neu?" öffnet sich nur einmal pro Seitenaufruf von selbst
+let neuAutoGezeigt = false;
 
 const KACHELN = [
   { titel: 'Projekte', projekte: true },
@@ -112,6 +116,13 @@ export async function render(container, ctx) {
     onclick: function () { archivSchalten(true); }
   });
   archivKnopf.hidden = true;
+  let neuStand = null;   // { items, stand }
+  const neuKnopf = el('button', {
+    class: 'knopf knopf-hell', type: 'button', text: 'Was ist neu?',
+    onclick: function () { neuOeffnen(); }
+  });
+  const neuZeile = el('div', { class: 'neu-zeile' }, neuKnopf);
+  neuZeile.hidden = true;
   const kopfKnoepfe = el('div', { class: 'kopf-knoepfe' },
     el('button', {
       class: 'knopf knopf-hell', type: 'button', text: '+ Umfrage',
@@ -161,6 +172,7 @@ export async function render(container, ctx) {
       el('h1', { text: 'Hallo ' + (getName() || '') }),
       kopfKnoepfe
     ),
+    neuZeile,
     fuss,
     archivBox,
     dashBox
@@ -507,11 +519,43 @@ export async function render(container, ctx) {
     }
   }
 
+  // ---- Was ist neu? ----
+
+  function neuAnzeige() {
+    const n = neuStand ? neuStand.items.length : 0;
+    neuZeile.hidden = !n;
+    neuKnopf.textContent = 'Was ist neu? (' + n + ')';
+  }
+
+  function neuOeffnen() {
+    if (!neuStand) return;
+    const st = neuStand;
+    zeigeNeu(st.items, function () {
+      setLetzterBesuch(s.gruppe_id, st.stand);
+      if (neuStand === st) neuStand = { items: [], stand: st.stand };
+      neuAnzeige();
+    });
+  }
+
+  async function ladeNeuSeit(automatisch) {
+    try {
+      const r = await holeNeu(s.token, s.gruppe_id, s.kurzname);
+      neuStand = r;
+      neuAnzeige();
+      if (automatisch && !neuAutoGezeigt && r.items.length) {
+        neuAutoGezeigt = true;
+        neuOeffnen();
+      }
+    } catch (e) {
+      ctx.behandleFehler(e);
+    }
+  }
+  
   erledigteCb.addEventListener('change', zeichne);
   // Während ein Häkchen noch gespeichert wird, wird nicht aktualisiert
   ctx.setzeRefresh(function () {
     if (Object.keys(arbeitet).length) return Promise.resolve();
-    return Promise.all([laden(false), ladeProjekte(false), ladeExtra(false), pinnwand.laden()]);
+    return Promise.all([laden(false), ladeProjekte(false), ladeExtra(false), pinnwand.laden(), ladeNeuSeit(false)]);
   });
-  await Promise.all([laden(true), ladeProjekte(true), ladeExtra(true)]);
+  await Promise.all([laden(true), ladeProjekte(true), ladeExtra(true), ladeNeuSeit(true)]);
 }
