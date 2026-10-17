@@ -1511,3 +1511,7 @@ p.notiz.erledigt {
     white-space: nowrap;
   }
 }
+
+/* ---- 0.26.4: Was ist neu? ---- */
+.neu-zeile { margin: 0 0 12px; }
+.neu-zeile[hidden] { display: none; }
