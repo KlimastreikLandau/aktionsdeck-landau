@@ -156,6 +156,18 @@ export const SCHEMA = {
       { name: 'link', label: 'Link (https://…)', typ: 'text' },
       { name: 'oeffentlich', label: 'Öffentlich (nur bei extern: erscheint ohne PIN auf der Termine-Seite)', typ: 'bool' }
     ]
+  },
+  Termin_Vorlagen: {
+    titel: 'Termin-Vorlagen',
+    felder: [
+      { name: 'name', label: 'Name der Vorlage (z. B. Plenum FFF)', typ: 'text', pflicht: true },
+      { name: 'art', label: 'Art (intern = nur Gruppe, extern = nach außen)', typ: 'auswahl', optionen: ['intern', 'extern'], pflicht: true },
+      { name: 'wochentag', label: 'Wochentag (für das nächste passende Datum)', typ: 'auswahl', optionen: ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'] },
+      { name: 'zeit_von', label: 'Uhrzeit von', typ: 'zeit' },
+      { name: 'zeit_bis', label: 'Uhrzeit bis', typ: 'zeit' },
+      { name: 'ort', label: 'Ort', typ: 'text' },
+      { name: 'beschreibung', label: 'Beschreibung', typ: 'langtext' }
+    ]
   }
 };
 
