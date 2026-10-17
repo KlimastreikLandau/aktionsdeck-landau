@@ -14,7 +14,7 @@ var TABELLEN = {
   Material: ['name', 'kategorie', 'unterkategorie', 'anzahl', 'einheit', 'ort', 'foto_id', 'notiz', 'aktiv', 'typ'],
   Ausleihe: ['material_id', 'projekt_id', 'person', 'art', 'anzahl', 'datum', 'notiz'],
   ToDos: ['projekt_id', 'post_id', 'text', 'verantwortlich', 'faellig_am', 'erledigt', 'erledigt_am', 'erledigt_von', 'prioritaet', 'sortierung', 'details', 'meilenstein_id'],
-  Projekte: ['titel', 'beschreibung', 'ort', 'status', 'start_datum', 'aktionsdatum', 'deadline', 'budget_geplant'],
+  Projekte: ['titel', 'beschreibung', 'ort', 'status', 'start_datum', 'aktionsdatum', 'deadline', 'budget_geplant', 'aktionsart'],
   Meilensteine: ['projekt_id', 'titel', 'datum', 'verantwortlich', 'erledigt'],
   Projekt_Team: ['projekt_id', 'person', 'zustaendigkeit'],
   Projekt_Material: ['projekt_id', 'material_id', 'name', 'kategorie', 'menge', 'beschaffung', 'beschafft', 'notiz'],
@@ -24,7 +24,7 @@ var TABELLEN = {
   Protokolle: ['projekt_id', 'datum', 'titel', 'teilnehmende', 'text'],
   Kommentare: ['projekt_id', 'bezug_art', 'bezug_id', 'text'],
   Learnings: ['projekt_id', 'aktionsart', 'text'],
-  Umfragen: ['frage', 'optionen', 'ablauf_am', 'mehrfach'],
+  Umfragen: ['frage', 'optionen', 'ablauf_am', 'mehrfach', 'beendet'],
   Umfrage_Antworten: ['umfrage_id', 'person', 'auswahl'],
   Mitteilungen: ['titel', 'text', 'angeheftet'],
   Ideen: ['titel', 'beschreibung', 'aktionsart', 'projekt_id']
@@ -44,7 +44,7 @@ var NUR_ANHAENGEN = ['Ausleihe'];
 // Spaltentypen: alles andere ist Text
 var ZAHL_SPALTEN = ['anzahl', 'menge', 'einzelpreis', 'betrag_geplant',
                     'betrag_tatsaechlich', 'budget_geplant', 'sortierung', 'tage_vorher'];
-var BOOL_SPALTEN = ['aktiv', 'geloescht', 'erledigt', 'beschafft', 'bezahlt', 'mehrfach', 'angeheftet'];
+var BOOL_SPALTEN = ['aktiv', 'geloescht', 'erledigt', 'beschafft', 'bezahlt', 'mehrfach', 'angeheftet', 'beendet'];
 
 function spaltenTyp(sp) {
   if (ZAHL_SPALTEN.indexOf(sp) >= 0) return 'zahl';
