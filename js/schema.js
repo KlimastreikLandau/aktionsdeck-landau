@@ -46,6 +46,7 @@ export const SCHEMA = {
       { name: 'titel', label: 'Titel', typ: 'text', pflicht: true },
       { name: 'beschreibung', label: 'Beschreibung', typ: 'langtext' },
       { name: 'ort', label: 'Ort', typ: 'text' },
+      { name: 'aktionsart', label: 'Aktionsart (z. B. Demo, Infostand)', typ: 'text' },
       { name: 'status', label: 'Status', typ: 'auswahl', optionen: ['planung', 'aktiv', 'erledigt', 'archiviert'] },
       { name: 'start_datum', label: 'Start', typ: 'datum' },
       { name: 'aktionsdatum', label: 'Aktionsdatum', typ: 'datum' },
@@ -119,7 +120,7 @@ export const SCHEMA = {
     felder: [
       { name: 'frage', label: 'Frage', typ: 'text', pflicht: true },
       { name: 'optionen', label: 'Antworten (eine pro Zeile, mindestens zwei)', typ: 'langtext', pflicht: true },
-      { name: 'ablauf_am', label: 'Läuft ab am (freiwillig)', typ: 'datum' },
+      { name: 'ablauf_am', label: 'Frist (freiwillig, beendet wird von Hand)', typ: 'datum' },
       { name: 'mehrfach', label: 'Mehrere Antworten erlaubt', typ: 'bool' }
     ]
   },
