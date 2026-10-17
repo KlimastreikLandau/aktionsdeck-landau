@@ -79,6 +79,13 @@ function eingabe(f, wert, vorschlaege, fotoFn) {
         if (typeof feld.showPicker === 'function') feld.showPicker();
       } catch (e) { /* ignorieren */ }
     });
+  } else if (f.typ === 'zeit') {
+    feld = el('input', { class: 'feld', type: 'time', name: f.name });
+    feld.addEventListener('click', function () {
+      try {
+        if (typeof feld.showPicker === 'function') feld.showPicker();
+      } catch (e) { /* ignorieren */ }
+    });
   } else {
     feld = el('input', { class: 'feld', type: 'text', name: f.name, maxlength: '200' });
     if (f.typ === 'zahl') feld.setAttribute('inputmode', 'decimal');
