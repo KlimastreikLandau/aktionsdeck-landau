@@ -180,3 +180,21 @@ export function treffer(t, f) {
   if (f.faellig === 'ohne') return !d;
   return true;
 }
+
+// ---- Kommentare ----
+
+// { todoId: Anzahl } aus der Liste Kommentare (nur Kommentare zu ToDos)
+export function kommentarZahlen(liste) {
+  const m = {};
+  (liste || []).forEach(function (k) {
+    if (String(k.bezug_art || '').trim() !== 'todo') return;
+    const id = String(k.bezug_id || '').trim();
+    if (id) m[id] = (m[id] || 0) + 1;
+  });
+  return m;
+}
+
+// Kleine Markierung hinter dem Titel, z. B. "  💬 2". Ohne Kommentare leer.
+export function kommentarMarke(n) {
+  return n ? '  💬 ' + n : '';
+}
