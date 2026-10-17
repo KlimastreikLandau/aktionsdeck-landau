@@ -29,7 +29,8 @@ var TABELLEN = {
   Mitteilungen: ['titel', 'text', 'angeheftet'],
   Ideen: ['titel', 'beschreibung', 'aktionsart', 'projekt_id'],
   Veranstaltungen: ['titel', 'art', 'datum', 'datum_ende', 'zeit_von', 'zeit_bis', 'ort',
-                    'beschreibung', 'veranstalter', 'link', 'oeffentlich']
+                    'beschreibung', 'veranstalter', 'link', 'oeffentlich'],
+  Termin_Vorlagen: ['name', 'art', 'wochentag', 'zeit_von', 'zeit_bis', 'ort', 'beschreibung']
 };
 
 // System-Tabs (über die API nicht direkt änderbar)
