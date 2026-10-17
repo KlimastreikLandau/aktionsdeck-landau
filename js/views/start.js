@@ -12,8 +12,8 @@ import { gruppenLogo } from '../ui/logo.js';
 import { fortschrittsBalken } from '../ui/balken.js';
 import { toast } from '../ui/toast.js';
 import { baueKommentare } from '../ui/kommentare.js';
-import { zeichneUmfragen } from './start-umfragen.js';
-import { zeichneBrett } from './start-brett.js';
+import { zeichneUmfragen, zeichneArchiv, neueUmfrage, anzahlBeendet } from './start-umfragen.js';
+import { zeichneBrett, neueMitteilung } from './start-brett.js';
 import { getName } from '../store.js';
 import { istWahr } from '../schema.js';
 import { zeitText } from './material-rechnen.js';
@@ -76,8 +76,7 @@ export async function render(container, ctx) {
       filter
     ),
     zahlen,
-    liste,
-    fuss
+    liste
   );
 
   const projektListe = el('div', { class: 'dash-projekt-liste' },
@@ -90,8 +89,40 @@ export async function render(container, ctx) {
     projektListe
   );
 
-  const umfrageBox = el('div', { class: 'start-extra' });
-  const brettBox = el('div', { class: 'start-extra' });
+  const umfrageBox = el('div');
+  const brettBox = el('div');
+  const extraRaster = el('div', { class: 'dash-raster start-extra' }, umfrageBox, brettBox);
+  extraRaster.hidden = true;   // erst sichtbar, wenn es Umfragen oder Mitteilungen gibt
+
+  const archivListe = el('div');
+  const archivBox = el('div', null,
+    el('div', { class: 'kopfzeile' },
+      el('h2', { text: 'Umfrage-Archiv' }),
+      el('button', {
+        class: 'knopf knopf-hell', type: 'button', text: '← Zurück zum Start',
+        onclick: function () { archivSchalten(false); }
+      })
+    ),
+    archivListe
+  );
+  archivBox.hidden = true;
+
+  const archivKnopf = el('button', {
+    class: 'knopf knopf-hell', type: 'button', text: 'Umfrage-Archiv',
+    onclick: function () { archivSchalten(true); }
+  });
+  archivKnopf.hidden = true;
+  const kopfKnoepfe = el('div', { class: 'kopf-knoepfe' },
+    el('button', {
+      class: 'knopf knopf-hell', type: 'button', text: '+ Umfrage',
+      onclick: function () { neueUmfrage(extraOpt()); }
+    }),
+    el('button', {
+      class: 'knopf knopf-hell', type: 'button', text: '+ Mitteilung',
+      onclick: function () { neueMitteilung(extraOpt()); }
+    }),
+    archivKnopf
+  );
   const pinnwand = baueKommentare({
     ctx: ctx,
     token: s.token,
@@ -105,13 +136,8 @@ export async function render(container, ctx) {
     max: 30
   });
   
-  container.append(el('div', { class: 'seite' },
-    el('div', { class: 'dash-kopf' },
-      gruppenLogo(s.kurzname, 'dash-logo'),
-      el('h1', { text: 'Hallo ' + (getName() || '') })
-    ),
-    umfrageBox,
-    brettBox,
+  const dashBox = el('div', null,
+    extraRaster,
     el('div', { class: 'dash-raster' },
       ...KACHELN.map(function (k) {
         if (k.projekte) return projektKachel;
@@ -123,6 +149,17 @@ export async function render(container, ctx) {
       })
     ),
     el('section', { class: 'karte start-pinnwand' }, pinnwand.el)
+  );
+
+  container.append(el('div', { class: 'seite' },
+    el('div', { class: 'dash-kopf' },
+      gruppenLogo(s.kurzname, 'dash-logo'),
+      el('h1', { text: 'Hallo ' + (getName() || '') }),
+      kopfKnoepfe
+    ),
+    fuss,
+    archivBox,
+    dashBox
   ));
 
   // ---- Projekte ----
@@ -254,21 +291,38 @@ export async function render(container, ctx) {
 
   // ---- Umfragen und Schwarzes Brett ----
 
+  function extraOpt() {
+    return {
+      ctx: ctx,
+      token: s.token,
+      holeDaten: function () {
+        return extraDaten || { umfragen: [], antworten: [], mitteilungen: [] };
+      },
+      mitteilungen: extraDaten ? extraDaten.mitteilungen : [],
+      neuLaden: function () { return ladeExtra(false); }
+    };
+  }
+
+  // Umfrage-Archiv statt Dashboard zeigen (und zurück)
+  function archivSchalten(an) {
+    dashBox.hidden = an;
+    archivBox.hidden = !an;
+    if (an) zeichneArchiv(archivListe, extraOpt());
+  }
+
   function zeichneExtra() {
     if (!extraDaten) return;
     const json = JSON.stringify(extraDaten);
     if (json === extraJson) return;   // nichts Neues: angefangene Auswahl nicht wegwischen
     extraJson = json;
-    const opt = {
-      ctx: ctx,
-      token: s.token,
-      umfragen: extraDaten.umfragen,
-      antworten: extraDaten.antworten,
-      mitteilungen: extraDaten.mitteilungen,
-      neuLaden: function () { return ladeExtra(false); }
-    };
+    const opt = extraOpt();
     zeichneUmfragen(umfrageBox, opt);
     zeichneBrett(brettBox, opt);
+    extraRaster.hidden = umfrageBox.hidden && brettBox.hidden;
+    const n = anzahlBeendet(extraDaten.umfragen);
+    archivKnopf.hidden = !n;
+    archivKnopf.textContent = 'Umfrage-Archiv (' + n + ')';
+    if (!archivBox.hidden) zeichneArchiv(archivListe, opt);
   }
 
   async function ladeExtra(zuerstCache) {
@@ -295,6 +349,8 @@ export async function render(container, ctx) {
     } catch (e) {
       if (ctx.behandleFehler(e)) return;
       if (!extraDaten) {
+        extraRaster.hidden = false;
+        umfrageBox.hidden = false;
         leeren(umfrageBox);
         umfrageBox.append(el('p', {
           class: 'fehler', text: 'Umfragen und Schwarzes Brett konnten nicht geladen werden: ' + e.message
