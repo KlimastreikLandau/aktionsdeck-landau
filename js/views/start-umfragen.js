@@ -152,25 +152,30 @@ function umfrageBlock(u, opt, neuZeichnen) {
   });
 
   const reihen = optionen.map(function (text, i) {
+    // Beendet: nur Text ohne Balken (leicht zu kopieren), bei namentlichen Umfragen mit Namen
+    if (aus) {
+      const namen = !istWahr(u.namentlich) ? [] : alle.filter(function (a) {
+        return auswahlVon(a).indexOf(i) >= 0;
+      }).map(function (a) { return txt(a.person); })
+        .sort(function (a, b) { return a.localeCompare(b, 'de'); });
+      return el('div', { class: 'umfrage-option' },
+        el('strong', { text: text + ': ' + zaehler[i] + (zaehler[i] === 1 ? ' Stimme' : ' Stimmen') }),
+        namen.length ? el('span', { text: namen.join(', ') }) : null
+      );
+    }
     const p = personen ? Math.round(zaehler[i] * 100 / personen) : 0;
     const balken = fortschrittsBalken(
       p, zaehler[i] + (zaehler[i] === 1 ? ' Stimme' : ' Stimmen') + ' · ' + p + ' %'
     );
-    let zeile;
-    if (aus) {
-      zeile = el('div', { class: 'umfrage-option-zeile' },
-        el('span', { text: (meine.indexOf(i) >= 0 ? '✔ ' : '') + text }));
-    } else {
-      const inp = el('input', {
-        type: mehrfach ? 'checkbox' : 'radio',
-        name: 'umfrage-' + u.id,
-        class: 'auswahl-box',
-        'aria-label': text
-      });
-      inp.checked = meine.indexOf(i) >= 0;
-      eingaben.push({ i: i, inp: inp });
-      zeile = el('label', { class: 'umfrage-option-zeile' }, inp, el('span', { text: text }));
-    }
+    const inp = el('input', {
+      type: mehrfach ? 'checkbox' : 'radio',
+      name: 'umfrage-' + u.id,
+      class: 'auswahl-box',
+      'aria-label': text
+    });
+    inp.checked = meine.indexOf(i) >= 0;
+    eingaben.push({ i: i, inp: inp });
+    const zeile = el('label', { class: 'umfrage-option-zeile' }, inp, el('span', { text: text }));
     return el('div', { class: 'umfrage-option' }, zeile, balken);
   });
 
@@ -207,6 +212,7 @@ function umfrageBlock(u, opt, neuZeichnen) {
 
   const meta = [
     aus ? 'Beendet' : '',
+    istWahr(u.namentlich) ? 'Namentlich' : 'Anonym',
     mehrfach ? 'Mehrere Antworten möglich' : 'Eine Antwort',
     personen + (personen === 1 ? ' Person' : ' Personen') + ' abgestimmt'
   ].filter(Boolean).join(' · ') + ' · ';
@@ -237,10 +243,12 @@ function umfrageBlock(u, opt, neuZeichnen) {
       el('span', { class: 'umfrage-frist ' + fristStatus(u), text: fristText(u) })
     ),
     ...reihen,
-    el('p', {
-      class: 'leise',
-      text: 'In der App sieht niemand, wer wie abgestimmt hat. Du siehst nur die Zahlen.'
-    }),
+    (!aus && istWahr(u.namentlich))
+      ? el('p', {
+        class: 'leise',
+        text: 'Namentliche Umfrage: Dein Name steht nach dem Beenden in der Auswertung.'
+      })
+      : null,
     knoepfe,
     fehler
   );
@@ -280,11 +288,15 @@ function oeffneUmfrage(id, opt) {
 function formZeigen(u, opt, nachher) {
   let fenster = null;
   const hatStimmen = !!u && stimmenVon(u, opt.holeDaten().antworten).length > 0;
-  // Schon abgestimmt: die Antworten bleiben fest (sonst stimmen die Nummern nicht mehr)
+  // Schon abgestimmt: Antworten und "namentlich" bleiben fest
+  // (sonst stimmen die Nummern nicht mehr, und eine anonyme Umfrage könnte Namen zeigen)
   const felder = SCHEMA.Umfragen.felder.filter(function (f) {
-    return !(hatStimmen && f.name === 'optionen');
+    return !(hatStimmen && (f.name === 'optionen' || f.name === 'namentlich'));
   });
-  const form = baueFormular(felder, u || { mehrfach: false }, {
+  const startWerte = u
+    ? Object.assign({}, u, { namentlich: istWahr(u.namentlich) })
+    : { mehrfach: false, namentlich: false };
+  const form = baueFormular(felder, startWerte, {
     speichernText: u ? 'Speichern' : 'Anlegen',
     onSpeichern: function (d) { return speichern(u, d, fenster, opt, nachher); },
     onAbbrechen: function () { fenster.schliessen(); }
@@ -293,7 +305,7 @@ function formZeigen(u, opt, nachher) {
   if (hatStimmen) {
     inhalt.prepend(el('p', {
       class: 'leise',
-      text: 'Es wurde schon abgestimmt. Die Antworten lassen sich nicht mehr ändern.'
+      text: 'Es wurde schon abgestimmt. Die Antworten und „namentlich“ lassen sich nicht mehr ändern.'
     }));
   }
   if (u) {
@@ -375,9 +387,9 @@ function zeile(u, opt) {
     mein ? '✔ Du hast abgestimmt' : 'Du hast noch nicht abgestimmt'
   ].join(' · ');
 
-  return el('li', { class: 'dash-zeile mit-hut' },
+  return el('li', { class: 'dash-zeile mit-hut umfrage-zeile' + (st ? ' ' + st : '') },
     el('button', {
-      class: 'dash-todo pt-todo' + (st ? ' ' + st : ''), type: 'button',
+      class: 'dash-todo pt-todo', type: 'button',
       onclick: function () { oeffneUmfrage(u.id, opt); }
     },
       el('strong', { text: txt(u.frage) }),
@@ -429,7 +441,7 @@ export function zeichneArchiv(box, opt) {
       el('summary', null,
         el('span', { class: 'teil-pfeil', 'aria-hidden': 'true', text: '▸' }),
         el('strong', { text: txt(u.frage) }),
-        el('span', { class: 'leise', text: n + (n === 1 ? ' Person' : ' Personen') })
+        el('span', { class: 'leise', text: n + (n === 1 ? ' Person' : ' Personen') + ' · ' + fristText(u) })
       ),
       el('div', { class: 'projekt-teil-body' }, umfrageBlock(u, opt, null))
     );
