@@ -32,6 +32,7 @@ const HUELLE = [
   'js/ui/lightbox.js',
   'js/ui/fenster.js',
   'js/ui/balken.js',
+  'js/ui/kommentare.js',
   'js/views/gruppen.js',
   'js/views/login.js',
   'js/views/start.js',
@@ -53,6 +54,9 @@ const HUELLE = [
   'js/views/projekt-material.js',
   'js/views/projekt-finanzen.js',
   'js/views/projekt-learnings.js',
+  'js/views/ideen.js',
+  'js/views/start-umfragen.js',
+  'js/views/start-brett.js',
   'js/views/todos-hut.js',
   'icons/icon.svg',
   'icons/logo.svg'
