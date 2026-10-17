@@ -102,6 +102,16 @@ export function anzahlBeendet(liste) {
   return (liste || []).filter(beendet).length;
 }
 
+// Text in die Zwischenablage legen
+function kopieren(text) {
+  const fehlt = function () { toast('Kopieren hat nicht geklappt. Bitte den Text markieren.'); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () { toast('Ergebnis kopiert.'); }, fehlt);
+  } else {
+    fehlt();
+  }
+}
+
 // ---- Beenden und wieder öffnen ----
 
 async function beendetSetzen(u, wert, text, opt, nachher) {
@@ -146,6 +156,7 @@ function umfrageBlock(u, opt, neuZeichnen) {
   const mein = meineStimme(u, antworten);
   const meine = mein ? auswahlVon(mein) : [];
   const eingaben = [];
+  const textZeilen = [];   // für "Ergebnis kopieren"
   const fehler = el('p', { class: 'fehler', role: 'alert' });
   const abstimmen = el('button', {
     class: 'knopf', type: 'button', text: mein ? 'Stimme ändern' : 'Abstimmen'
@@ -158,8 +169,10 @@ function umfrageBlock(u, opt, neuZeichnen) {
         return auswahlVon(a).indexOf(i) >= 0;
       }).map(function (a) { return txt(a.person); })
         .sort(function (a, b) { return a.localeCompare(b, 'de'); });
+      const zeileText = text + ': ' + zaehler[i] + (zaehler[i] === 1 ? ' Stimme' : ' Stimmen');
+      textZeilen.push(zeileText + (namen.length ? ' (' + namen.join(', ') + ')' : ''));
       return el('div', { class: 'umfrage-option' },
-        el('strong', { text: text + ': ' + zaehler[i] + (zaehler[i] === 1 ? ' Stimme' : ' Stimmen') }),
+        el('strong', { text: zeileText }),
         namen.length ? el('span', { text: namen.join(', ') }) : null
       );
     }
@@ -224,6 +237,13 @@ function umfrageBlock(u, opt, neuZeichnen) {
     onclick: function () { formZeigen(u, opt, neuZeichnen); }
   }));
   if (aus) {
+    knoepfe.append(el('button', {
+      class: 'knopf knopf-hell', type: 'button', text: 'Ergebnis kopieren',
+      onclick: function () {
+        kopieren(txt(u.frage) + '\n' + textZeilen.join('\n') + '\n' +
+          personen + (personen === 1 ? ' Person' : ' Personen') + ' abgestimmt');
+      }
+    }));
     knoepfe.append(el('button', {
       class: 'knopf knopf-hell', type: 'button', text: 'Wieder öffnen',
       onclick: function () {
