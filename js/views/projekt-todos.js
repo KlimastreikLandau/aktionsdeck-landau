@@ -13,12 +13,14 @@ import { zeigeFenster } from '../ui/fenster.js';
 import { fortschrittsBalken } from '../ui/balken.js';
 import { baueFormular } from '../ui/form.js';
 import { toast } from '../ui/toast.js';
+import { baueKommentare } from '../ui/kommentare.js';
 import { getName } from '../store.js';
 import { SCHEMA, istWahr } from '../schema.js';
 import { VORLAGEN, faelligAus } from '../vorlagen.js';
 import { abhakWerte, abhakenSpeichern } from './todos-abhaken.js';
 import {
-  kurz, faelligStatus, faelligText, prioText, sortieren, zahlenText, datumText
+  kurz, faelligStatus, faelligText, prioText, sortieren, zahlenText, datumText,
+  kommentarZahlen, kommentarMarke
 } from './todos-rechnen.js';
 import {
   fortschritt, meilensteinStand, sortiereMeilensteine, meilensteinFaellig
@@ -50,6 +52,7 @@ export function baueTodoTeil(opt) {
     return String(m.projekt_id || '').trim() === pid;
   }));
   const f = fortschritt(pid, daten().todos);
+  const kz = kommentarZahlen(daten().kommentare);
 
   // ---- Hilfen ----
 
@@ -80,13 +83,14 @@ export function baueTodoTeil(opt) {
     return e;
   }
 
-  function fensterMitLoeschen(titel, form, loeschen) {
+  function fensterMitLoeschen(titel, form, loeschen, extra) {
     const inhalt = el('div', null, form);
     if (loeschen) {
       inhalt.append(el('div', { class: 'fenster-loeschen' },
         el('button', { class: 'knopf knopf-gefahr', type: 'button', text: 'Löschen', onclick: loeschen })
       ));
     }
+    if (extra) inhalt.append(extra);
     return zeigeFenster(titel, inhalt);
   }
 
@@ -184,7 +188,11 @@ export function baueTodoTeil(opt) {
     fenster = fensterMitLoeschen(
       t ? 'ToDo bearbeiten' : 'Neues ToDo',
       form,
-      t ? function () { todoLoeschen(t, fenster); } : null
+      t ? function () { todoLoeschen(t, fenster); } : null,
+      t ? baueKommentare({
+        ctx: ctx, token: token, art: 'todo', bezugId: t.id, projektId: pid,
+        beiAenderung: function () { opt.neuLaden(); }
+      }).el : null
     );
   }
 
@@ -420,7 +428,7 @@ export function baueTodoTeil(opt) {
       class: klassen.join(' '), type: 'button',
       onclick: function () { todoFormZeigen(t, ''); }
     },
-      el('strong', { text: kurz(t.text, 90) }),
+      el('strong', { text: kurz(t.text, 90) + kommentarMarke(kz[String(t.id)]) }),
       info ? el('span', { class: 'leise', text: info }) : null,
       t.details ? el('span', { class: 'leise', text: kurz(t.details, 100) }) : null
     );
