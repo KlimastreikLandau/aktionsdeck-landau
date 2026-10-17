@@ -45,7 +45,7 @@ export function oeffentlicheLinks() {
   );
 }
 
-function eintrag(klasse, basis, t, aktiv) {
+function eintrag(klasse, basis, t, aktiv, beiAktiv) {
   const a = el('a', {
     class: klasse + (t.id === aktiv ? ' aktiv' : ''),
     href: basis + t.id
@@ -54,6 +54,13 @@ function eintrag(klasse, basis, t, aktiv) {
     el('span', { text: t.label })
   );
   if (t.id === aktiv) a.setAttribute('aria-current', 'page');
+  // Klick auf den schon offenen Reiter: Ansicht neu aufbauen (verlässt z. B. das Archiv)
+  if (t.id === aktiv && beiAktiv) {
+    a.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      beiAktiv();
+    });
+  }
   return a;
 }
 
@@ -68,7 +75,7 @@ export function baueGeruest(container, ctx) {
       gruppenLogo(ctx.session.kurzname, 'seiten-logo'),
       el('span', { text: String(ctx.session.kurzname).toUpperCase() })
     ),
-    ...tabs.map(function (t) { return eintrag('nav-link', basis, t, aktiv); }),
+    ...tabs.map(function (t) { return eintrag('nav-link', basis, t, aktiv, ctx.neuLaden); }),
     el('div', { class: 'seiten-fuss' },
       el('span', { class: 'leise', text: 'Angemeldet als ' + (getName() || 'unbekannt') }),
       el('button', { class: 'knopf knopf-hell', type: 'button', text: 'Name ändern', onclick: ctx.nameAendern }),
@@ -80,8 +87,8 @@ export function baueGeruest(container, ctx) {
   const mehrAktiv = UNTEN.indexOf(aktiv) < 0 ? 'mehr' : '';
   const untenleiste = el('nav', { class: 'untenleiste', 'aria-label': 'Hauptmenü' },
     ...tabs.filter(function (t) { return UNTEN.indexOf(t.id) >= 0; })
-      .map(function (t) { return eintrag('nav-unten', basis, t, aktiv); }),
-    eintrag('nav-unten', basis, MEHR, mehrAktiv)
+      .map(function (t) { return eintrag('nav-unten', basis, t, aktiv, ctx.neuLaden); }),
+    eintrag('nav-unten', basis, MEHR, mehrAktiv, ctx.neuLaden)
   );
 
   const inhalt = el('main', { class: 'inhalt', id: 'inhalt' });
